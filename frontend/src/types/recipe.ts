@@ -42,9 +42,17 @@ export interface SearchResponse {
   parsed_pantry: {
     display_terms: string[]
     recognized: string[]
+    deterministic: string[]
+    refined: string[]
     core: string[]
     basics: string[]
     unresolved: string[]
+    mode: 'deterministic' | 'locally_refined' | 'deterministic_fallback'
+    model_status: {
+      available: boolean
+      model: string
+      reason: 'not_needed' | 'ready' | 'service_unavailable' | 'model_missing' | 'timeout' | 'invalid_output'
+    }
   }
   results: RecipeSummary[]
   total_eligible: number

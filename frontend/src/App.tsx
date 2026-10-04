@@ -8,6 +8,7 @@ import {
   Leaf,
   Search,
   SlidersHorizontal,
+  Sparkles,
   Target,
   Utensils,
   X,
@@ -33,6 +34,7 @@ function App() {
   const [pantry, setPantry] = useState(localStorage.getItem('protein-pantry:pantry') || '')
   const [target, setTarget] = useState(Number(localStorage.getItem('protein-pantry:target')) || 30)
   const [maxMinutes, setMaxMinutes] = useState<number | ''>('')
+  const [exclusions, setExclusions] = useState(localStorage.getItem('protein-pantry:exclusions') || '')
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,12 +63,16 @@ function App() {
     setError(null)
     localStorage.setItem('protein-pantry:pantry', pantry)
     localStorage.setItem('protein-pantry:target', String(target))
+    localStorage.setItem('protein-pantry:exclusions', exclusions)
     try {
       setResults(await searchRecipes({
         text: pantry,
         protein_target_g: target,
         preferred_minutes: maxMinutes === '' ? null : maxMinutes,
-        exclusions: [],
+        exclusions: exclusions
+          .split(/[,;\n]+|\band\b/i)
+          .map((value) => value.trim())
+          .filter(Boolean),
       }))
       setPantryOpen(false)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -147,6 +153,16 @@ function App() {
                 </div>
               </div>
             </div>
+
+            <label className="exclusions-label" htmlFor="exclusions">Avoid ingredients <span>(optional)</span></label>
+            <input
+              id="exclusions"
+              type="text"
+              value={exclusions}
+              onChange={(event) => setExclusions(event.target.value)}
+              placeholder="e.g. mushrooms, peanuts, coconut"
+            />
+            <p className="field-help">Separate several ingredients with commas. Red meat is always excluded.</p>
 
             <p className="form-note"><Target size={16} /> You choose the target. We do not provide medical advice.</p>
             <button className="primary-button" type="submit" disabled={searching || !pantry.trim()}>
@@ -231,13 +247,28 @@ function App() {
 }
 
 function PantryStrip({ response }: { response: SearchResponse }) {
+  const pantry = response.parsed_pantry
+  const deterministicBasics = pantry.basics.filter((term) => pantry.deterministic.includes(term))
+  const genericBasics = pantry.basics.filter((term) => !pantry.deterministic.includes(term) && !pantry.refined.includes(term))
+  const deterministicCore = pantry.deterministic.filter((term) => !pantry.basics.includes(term))
+  const fallbackMessages: Record<string, string> = {
+    service_unavailable: 'The local helper is not running. Start Ollama to refine unmatched words; direct matches still work.',
+    model_missing: `The ${pantry.model_status.model} model is not installed. Direct ingredient matches still work.`,
+    timeout: 'The local helper took too long, so these results use direct ingredient matches.',
+    invalid_output: 'The local helper could not safely resolve the remaining words, so they stayed unmatched.',
+  }
   return (
     <div className="prep-strip" aria-label="Pantry terms">
       <span className="prep-label">In your pantry</span>
       <div>
-        {response.parsed_pantry.recognized.map((term) => <span className="ingredient-chip matched" key={term}><Check size={13} />{term}</span>)}
-        {response.parsed_pantry.unresolved.map((term) => <span className="ingredient-chip unresolved" key={term}>{term}?</span>)}
+        {deterministicCore.map((term) => <span className="ingredient-chip matched" key={term}><Check size={13} />{term}</span>)}
+        {deterministicBasics.map((term) => <span className="ingredient-chip basic" key={term}>{term}<small>basic</small></span>)}
+        {genericBasics.map((term) => <span className="ingredient-chip basic" key={term}>{term}<small>basic</small></span>)}
+        {pantry.refined.map((term) => <span className={`ingredient-chip refined ${pantry.basics.includes(term) ? 'basic' : ''}`} key={term}><Sparkles size={13} />{term}{pantry.basics.includes(term) && <small>basic</small>}</span>)}
+        {pantry.unresolved.map((term) => <span className="ingredient-chip unresolved" key={term}>{term}?</span>)}
       </div>
+      {pantry.mode === 'locally_refined' && <p className="parse-note"><Sparkles size={14} /> Ambiguous words were understood by Gemma on this device.</p>}
+      {pantry.mode === 'deterministic_fallback' && <p className="parse-note fallback">{fallbackMessages[pantry.model_status.reason] || 'The local helper was unavailable, so results use direct ingredient matches.'}</p>}
     </div>
   )
 }

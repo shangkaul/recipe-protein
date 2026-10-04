@@ -6,11 +6,12 @@ ALIASES = {
     "capsicum": "pepper", "bell pepper": "pepper", "chilli": "chili",
     "chillies": "chili", "chilies": "chili", "coriander": "cilantro",
     "dhania": "cilantro", "curd": "yogurt", "dahi": "yogurt",
-    "garbanzo": "chickpea", "garbanzo beans": "chickpea", "chana": "chickpea",
-    "rajma": "kidney bean", "dal": "lentil", "daal": "lentil",
-    "moong": "mung bean", "atta": "flour", "maida": "flour",
+    "garbanzo": "chickpeas", "garbanzo beans": "chickpeas", "chana": "chickpeas",
+    "rajma": "red kidney beans", "dal": "lentils", "daal": "lentils", "dhal": "lentils",
+    "moong": "moong dal", "atta": "flour", "maida": "flour",
     "aloo": "potato", "palak": "spinach", "gobi": "cauliflower",
-    "matar": "pea", "mutter": "pea", "paneer cheese": "paneer",
+    "matar": "peas", "mutter": "peas", "paneer cheese": "paneer",
+    "bhindi": "okra", "murgh": "chicken", "chawal": "rice", "shimla mirch": "pepper",
     "scallion": "spring onion", "green onion": "spring onion",
 }
 

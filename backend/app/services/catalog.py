@@ -6,6 +6,7 @@ from pathlib import Path
 from rank_bm25 import BM25Okapi
 
 from .pantry import normalize, parse_pantry
+from .pantry_refinement import pantry_refinement
 from .safety import recipe_is_safe
 
 
@@ -30,6 +31,16 @@ def ingredient_matches(term: str, ingredient: str) -> bool:
         return False
     blockers = DERIVED_FORMS.get(term, set())
     return not blockers.intersection(ingredient.split())
+
+
+def exclusion_matches(term: str, ingredient: str) -> bool:
+    term_words = term.split()
+    ingredient_words = ingredient.split()
+    for start in range(len(ingredient_words) - len(term_words) + 1):
+        candidate = ingredient_words[start:start + len(term_words)]
+        if all(left == right or left.rstrip("s") == right.rstrip("s") for left, right in zip(term_words, candidate)):
+            return True
+    return False
 
 
 class RecipeCatalog:
@@ -110,7 +121,9 @@ class RecipeCatalog:
         return [self.summary(recipe) for recipe in pool[:limit]]
 
     def search(self, pantry_text: str, target: float, preferred_minutes: int | None, exclusions: list[str], limit: int) -> dict:
-        parsed = parse_pantry(pantry_text, self.known_terms)
+        parsed = pantry_refinement.refine(
+            pantry_text, parse_pantry(pantry_text, self.known_terms), self.known_terms,
+        )
         core_terms = parsed["core"] or parsed["recognized"]
         # Retrieval is driven by meal-defining ingredients. Staples and vague seasoning phrases
         # may explain pantry coverage but must not outrank a stronger core-ingredient match.
@@ -122,7 +135,7 @@ class RecipeCatalog:
             ingredient_terms = {
                 normalize(ingredient["name"]["en"]) for ingredient in recipe["ingredients"]
             } | {normalize(ingredient["id"]) for ingredient in recipe["ingredients"]}
-            if excluded and any(any(term in ingredient for term in excluded) for ingredient in ingredient_terms):
+            if excluded and any(any(exclusion_matches(term, ingredient) for term in excluded) for ingredient in ingredient_terms):
                 continue
             matched = sorted({term for term in parsed["recognized"] if any(ingredient_matches(term, ing) for ing in ingredient_terms)})
             matched_core = sorted(term for term in core_terms if term in matched)

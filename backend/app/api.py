@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from .models import PantryRequest
 from .services.catalog import catalog
+from .services.ollama import ollama_client
 
 
 api = Blueprint("api", __name__)
@@ -10,7 +11,11 @@ api = Blueprint("api", __name__)
 
 @api.get("/health")
 def health():
-    return jsonify({"status": "ok", "recipes": len(catalog.recipes), "model": "local-optional"})
+    return jsonify({
+        "status": "ok",
+        "recipes": len(catalog.recipes),
+        "local_model": ollama_client.status().as_dict(),
+    })
 
 
 @api.get("/recipes/featured")

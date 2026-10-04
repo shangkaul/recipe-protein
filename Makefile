@@ -1,9 +1,12 @@
-.PHONY: setup dev test build
+.PHONY: setup setup-ai dev test build
 
 setup:
 	python3 -m venv backend/.venv
 	backend/.venv/bin/pip install -r backend/requirements.txt
 	npm install --prefix frontend
+
+setup-ai:
+	ollama pull gemma3:1b
 
 dev:
 	./scripts/dev.sh
