@@ -23,10 +23,13 @@ DERIVED_FORMS = {
     "chicken": {"stock", "broth", "bouillon"},
     "rice": {"noodle", "noodles", "paper", "flour", "vinegar", "wine", "milk"},
 }
+PASTA_FORMS = {"spaghetti", "penne", "macaroni", "linguine", "fettuccine", "rigatoni", "tagliatelle"}
 
 
 def ingredient_matches(term: str, ingredient: str) -> bool:
     if term == ingredient:
+        return True
+    if term == "pasta" and PASTA_FORMS.intersection(ingredient.split()):
         return True
     if term not in ingredient and ingredient not in term:
         return False
@@ -82,6 +85,7 @@ class RecipeCatalog:
             self.recipes.append(item)
             self.by_slug[item["slug"]] = item
         self.bm25 = BM25Okapi(docs, k1=1.2, b=0.75)
+        self.known_terms.update(self.local_index.known_terms)
 
     def summary(self, recipe: dict) -> dict:
         photo = recipe.get("photo")
@@ -132,6 +136,7 @@ class RecipeCatalog:
         # may explain pantry coverage but must not outrank a stronger core-ingredient match.
         query_terms = core_terms or parsed["recognized"] or parsed["display_terms"]
         scores = self.bm25.get_scores(tokens(" ".join(query_terms))) if self.bm25 else []
+        max_lexical = max((float(score) for score in scores), default=0.0)
         excluded = {normalize(value) for value in exclusions}
         ranked = []
         for index, recipe in enumerate(self.recipes):
@@ -151,7 +156,7 @@ class RecipeCatalog:
             protein = recipe["nutritionPerServing"]["protein"]
             target_fit = math.exp(-abs(protein - target) / max(8, target * 0.55))
             time_fit = math.exp(-abs(recipe["totalMinutes"] - preferred_minutes) / max(15, preferred_minutes * 0.5)) if preferred_minutes else 0
-            lexical = float(scores[index]) if len(scores) else 0.0
+            lexical = (float(scores[index]) / max_lexical * 6) if len(scores) and max_lexical > 0 else 0.0
             title = normalize(recipe["name"]["en"])
             title_match_count = sum(1 for term in core_terms if ingredient_matches(term, title))
             title_fit = title_match_count * 2.2
@@ -179,11 +184,12 @@ class RecipeCatalog:
                 "reasons": reasons[:3] or ["Relevant to your pantry"],
             })
         local_terms = list(dict.fromkeys([*core_terms, *parsed["display_terms"]]))
-        for recipe in self.local_index.search(local_terms, excluded):
+        local_candidates = self.local_index.search(local_terms, excluded)
+        max_local_lexical = max((recipe["lexical_score"] for recipe in local_candidates), default=0.0)
+        for recipe in local_candidates:
             ingredient_terms = {normalize(ingredient) for ingredient in recipe["ingredients_text"]}
             matching_text = ingredient_terms | {
                 normalize(recipe["name"]),
-                *(normalize(step) for step in recipe["instructions_text"]),
             }
             terms_to_match = list(dict.fromkeys([*parsed["recognized"], *parsed["display_terms"]]))
             local_core_terms = parsed["display_terms"] if parsed["mode"] == "locally_refined" else (core_terms or terms_to_match)
@@ -202,7 +208,8 @@ class RecipeCatalog:
             ]
             title = normalize(recipe["name"])
             title_fit = sum(1 for term in local_core_terms if ingredient_matches(term, title)) * 2.2
-            score = recipe["lexical_score"] + coverage * 8 + title_fit - min(len(missing), 8) * 0.12
+            lexical = recipe["lexical_score"] / max_local_lexical * 6 if max_local_lexical > 0 else 0.0
+            score = lexical + coverage * 8 + title_fit - min(len(missing), 8) * 0.12
             reasons = []
             if full_core_match and len(local_core_terms) > 1:
                 reasons.append("Matches all your main ingredients")

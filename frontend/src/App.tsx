@@ -278,7 +278,7 @@ function RecipeCard({ recipe, ranked, featured, onOpen }: { recipe: RecipeSummar
     <article className={`recipe-card ${featured ? 'is-featured' : ''}`}>
       <button className="recipe-card-action" type="button" onClick={() => onOpen(recipe.slug)} aria-label={`View ${recipe.name}`}>
         <div className="recipe-image-wrap">
-          {recipe.photo ? <img src={recipe.photo.url} alt="" loading={featured ? 'eager' : 'lazy'} onError={(event) => { event.currentTarget.style.display = 'none' }} /> : <div className="image-fallback"><Utensils size={28} /></div>}
+          <RecipeArtwork recipe={recipe} eager={featured} />
           {recipe.country === 'India' && <span className="image-label">Indian</span>}
         </div>
         <div className="recipe-copy">
@@ -301,6 +301,12 @@ function RecipeCard({ recipe, ranked, featured, onOpen }: { recipe: RecipeSummar
       </button>
     </article>
   )
+}
+
+function RecipeArtwork({ recipe, eager }: { recipe: RecipeSummary; eager: boolean }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  if (!recipe.photo || failedUrl === recipe.photo.url) return <div className="image-fallback"><Utensils size={28} /></div>
+  return <img src={recipe.photo.url} alt="" loading={eager ? 'eager' : 'lazy'} onError={() => setFailedUrl(recipe.photo?.url || null)} />
 }
 
 function LoadingMeals() {

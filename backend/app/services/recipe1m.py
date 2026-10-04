@@ -14,6 +14,10 @@ DEFAULT_DB_PATH = Path(__file__).parents[2] / "data" / "recipe1m.sqlite"
 DEFAULT_IMAGE_CACHE = Path(__file__).parents[2] / "data" / "recipe1m-images"
 QUERY_TOKEN_RE = re.compile(r"[a-z0-9]+")
 QUERY_STOPWORDS = {"and", "or", "the", "with", "some", "my", "a", "an", "of"}
+LOCAL_PANTRY_TERMS = {
+    "pasta", "spaghetti", "penne", "macaroni", "linguine", "fettuccine", "rigatoni",
+    "tagliatelle", "vermicelli", "noodles", "ramen", "soba", "udon",
+}
 
 
 class Recipe1MIndex:
@@ -36,6 +40,10 @@ class Recipe1MIndex:
                 ).fetchone() is not None
         except sqlite3.Error:
             return False
+
+    @property
+    def known_terms(self) -> set[str]:
+        return LOCAL_PANTRY_TERMS if self.available else set()
 
     def status(self) -> dict:
         result = {"available": self.available, "path": str(self.path), "recipes": 0}
@@ -99,13 +107,14 @@ class Recipe1MIndex:
         if not row:
             return None
         ingredients = json.loads(row["ingredients_json"])
-        record = self._record(row, ingredients)
+        instructions = json.loads(row["instructions_json"])
+        record = self._record(row, ingredients, instructions)
         record.update({
             "ingredients": [
                 {"id": f"ingredient-{index}", "name": text, "quantity": None, "unit": "", "note": None}
                 for index, text in enumerate(ingredients)
             ],
-            "steps": [{"text": text, "minutes": None} for text in json.loads(row["instructions_json"])],
+            "steps": [{"text": text, "minutes": None} for text in instructions],
             "nutrition": self._nutrition(row),
             "nutrition_basis": "per_100g" if row["protein_per_100g"] is not None else None,
         })
@@ -169,7 +178,7 @@ class Recipe1MIndex:
             "carbs": None,
         }
 
-    def _record(self, row: sqlite3.Row, ingredients: list[str]) -> dict:
+    def _record(self, row: sqlite3.Row, ingredients: list[str], instructions: list[str] | None = None) -> dict:
         nutrition = self._nutrition(row)
         photo = None
         if row["image_url"]:
@@ -194,7 +203,7 @@ class Recipe1MIndex:
             "calories": None,
             "photo": photo,
             "ingredients_text": ingredients,
-            "instructions_text": json.loads(row["instructions_json"]),
+            "instructions_text": instructions or [],
             "lexical_score": float(row["lexical_score"]) if "lexical_score" in row.keys() else 0.0,
             "corpus": "recipe1m",
             "source": {
@@ -209,7 +218,11 @@ class Recipe1MIndex:
 def _phrase_matches(term: str, value: str) -> bool:
     term_words = term.split()
     value_words = value.split()
-    return any(value_words[index:index + len(term_words)] == term_words for index in range(len(value_words)))
+    for index in range(len(value_words) - len(term_words) + 1):
+        candidate = value_words[index:index + len(term_words)]
+        if all(left == right or left.rstrip("s") == right.rstrip("s") for left, right in zip(term_words, candidate)):
+            return True
+    return False
 
 
 recipe1m_index = Recipe1MIndex()

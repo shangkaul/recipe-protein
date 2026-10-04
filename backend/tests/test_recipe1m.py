@@ -18,8 +18,8 @@ def fixture_index(tmp_path: Path) -> Recipe1MIndex:
             "title": "Weeknight Penne Pasta",
             "url": "https://example.com/penne",
             "partition": "train",
-            "ingredients": [{"text": "8 ounces penne"}, {"text": "2 cups spinach"}],
-            "instructions": [{"text": "Boil the pasta."}, {"text": "Fold in spinach."}],
+            "ingredients": [{"text": "8 ounces penne"}, {"text": "2 cups mushrooms"}],
+            "instructions": [{"text": "Boil the pasta."}, {"text": "Fold in mushrooms."}],
         },
         {
             "id": "0000000002",
@@ -62,11 +62,17 @@ def test_local_pasta_results_join_existing_deterministic_ranking(tmp_path):
     catalog = RecipeCatalog(local_index=fixture_index(tmp_path))
     catalog.load()
     result = catalog.search("pasta", 30, 30, [], 10)
+    assert result["parsed_pantry"]["recognized"] == ["pasta"]
     local = next(item for item in result["results"] if item["corpus"] == "recipe1m")
     assert local["name"] == "Weeknight Penne Pasta"
     assert local["total_minutes"] is None
     assert local["protein_g"] is None
     assert "local Recipe1M" in local["reasons"][1]
+
+
+def test_local_exclusions_match_plural_ingredient_words(tmp_path):
+    index = fixture_index(tmp_path)
+    assert index.search(["pasta"], {"mushroom"}) == []
 
 
 def test_missing_index_keeps_public_catalog_available(tmp_path):
