@@ -1,9 +1,11 @@
 import pytest
+from pydantic import ValidationError
 
 from app import create_app
 from app.models import ModelAdaptation
 from app.services.adaptation import AdaptationFailure, AdaptationService, adaptation_service
 from app.services.nutrition import nutrition_reference
+from app.services.ollama import LocalModelError
 from scripts.build_recipe1m_index import _validated_recipe_totals
 
 
@@ -16,6 +18,16 @@ class StubClient:
     def structured(self, _system, _user, schema_model, timeout):
         assert timeout == 30
         return schema_model.model_validate(self.proposal)
+
+
+class FailingClient:
+    model = "gemma-test"
+
+    def __init__(self, reason: str):
+        self.reason = reason
+
+    def structured(self, *_args, **_kwargs):
+        raise LocalModelError(self.reason)
 
 
 def source_recipe():
@@ -54,7 +66,7 @@ def test_nutrient_delta_is_server_calculated_from_usda_record():
 
 def test_adaptation_rejects_non_pantry_and_invalid_increase():
     non_pantry = AdaptationService(StubClient(proposal(ingredient_id="chicken")))
-    with pytest.raises(AdaptationFailure, match="unknown_or_duplicate_ingredient"):
+    with pytest.raises(ValidationError):
         non_pantry.adapt(source_recipe(), "tofu", 30, [], 2, {"protein": 18, "calories": 420, "fat": 12, "carbs": 55})
 
     missing_source = AdaptationService(StubClient(proposal(action="increase", ingredient_id="egg")))
@@ -72,6 +84,12 @@ def test_adaptation_rejects_excluded_and_unsafe_proposals():
     unsafe = AdaptationService(StubClient(unsafe_data))
     with pytest.raises(AdaptationFailure, match="unsafe_proposal"):
         unsafe.adapt(source_recipe(), "tofu", 30, [], 2, {"protein": 18, "calories": 420, "fat": 12, "carbs": 55})
+
+
+def test_adaptation_does_not_add_protein_when_target_is_already_met():
+    service = AdaptationService(StubClient(proposal()))
+    with pytest.raises(AdaptationFailure, match="target_already_met"):
+        service.adapt(source_recipe(), "tofu", 15, [], 2, {"protein": 18, "calories": 420, "fat": 12, "carbs": 55})
 
 
 def test_recipe1m_totals_require_consistent_grounded_inputs():
@@ -107,3 +125,13 @@ def test_adaptation_api_requires_a_real_recipe_and_valid_request():
     assert client.post("/api/recipes/not-real/adapt", json={"pantry": "tofu"}).status_code == 404
     response = client.post("/api/recipes/miso-soup/adapt", json={"pantry": "", "servings": 0})
     assert response.status_code == 422
+
+
+def test_adaptation_api_preserves_original_when_local_model_fails(monkeypatch):
+    monkeypatch.setattr(adaptation_service, "client", FailingClient("service_unavailable"))
+    response = create_app(testing=True).test_client().post("/api/recipes/miso-soup/adapt", json={
+        "pantry": "tofu", "protein_target_g": 20,
+    })
+    assert response.status_code == 503
+    assert response.json["reason"] == "service_unavailable"
+    assert "Start Ollama" in response.json["error"]

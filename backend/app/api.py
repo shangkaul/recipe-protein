@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from .models import AdaptRequest, PantryRequest, ServingRequest
 from .services.adaptation import AdaptationFailure, adaptation_service
 from .services.catalog import catalog
-from .services.ollama import ollama_client
+from .services.ollama import LocalModelError, ollama_client
 from .services.recipe1m import recipe1m_index
 
 
@@ -91,7 +91,17 @@ def adapt_recipe(slug: str):
             servings, nutrition_result["nutrition"],
         )
     except AdaptationFailure as error:
-        return jsonify({"error": "This adaptation could not be safely validated", "reason": error.reason}), 422
+        messages = {
+            "target_already_met": "This recipe already meets your protein target, so no increase is needed",
+            "no_supported_pantry_ingredients": "No pantry ingredient has a verified local nutrient record for adaptation",
+            "ingredient_not_in_source": "The proposed increase was not present in the source recipe",
+            "excluded_ingredient": "The proposal used an ingredient you chose to avoid",
+            "unsafe_proposal": "The proposal did not pass the red-meat safety check",
+        }
+        return jsonify({
+            "error": messages.get(error.reason, "This adaptation could not be safely validated"),
+            "reason": error.reason,
+        }), 422
     except LocalModelError as error:
         messages = {
             "service_unavailable": "Start Ollama on this device, then try the adaptation again",

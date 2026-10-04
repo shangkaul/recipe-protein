@@ -341,6 +341,7 @@ function RecipeDrawer({ recipe, pantry, target, exclusions, onClose }: {
   const [adaptationError, setAdaptationError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [adapting, setAdapting] = useState(false)
+  const targetAlreadyMet = confirmed ? confirmed.nutrition.protein >= target : false
 
   async function confirmServings() {
     if (servings === '') return
@@ -436,7 +437,8 @@ function RecipeDrawer({ recipe, pantry, target, exclusions, onClose }: {
                 {confirmed && (
                   <p className="confirmed-nutrition"><Check size={16} /> {confirmed.nutrition.protein}g protein and {confirmed.nutrition.calories} kcal per serving for {confirmed.servings} servings.</p>
                 )}
-                <button className="primary-button" type="button" disabled={adapting || !confirmed} onClick={requestAdaptation}>
+                {targetAlreadyMet && <p className="adaptation-message">This recipe already meets your {target}g target, so no protein increase is needed.</p>}
+                <button className="primary-button" type="button" disabled={adapting || !confirmed || targetAlreadyMet} onClick={requestAdaptation}>
                   {adapting ? 'Validating locally…' : 'Adapt using my pantry'}
                   {!adapting && <Sparkles size={18} />}
                 </button>

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from typing import Literal
 
-from app.models import ModelAdaptation
+from pydantic import Field, create_model
 
 from .nutrition import NutritionReference, nutrition_reference
 from .ollama import LocalModelError, OllamaClient, ollama_client
@@ -41,6 +42,8 @@ class AdaptationService:
         servings: int,
         base_nutrition: dict,
     ) -> dict:
+        if float(base_nutrition["protein"]) >= target:
+            raise AdaptationFailure("target_already_met")
         pantry_foods = self.reference.pantry_foods(pantry)
         excluded = {normalize(value) for value in exclusions}
         pantry_foods = {
@@ -65,7 +68,8 @@ class AdaptationService:
             f"Allowed pantry ingredients: {allowed}\n"
             f"Excluded terms: {sorted(excluded)}"
         )
-        proposal = self.client.structured(SYSTEM_PROMPT, prompt, ModelAdaptation, timeout=30)
+        proposal_schema = _proposal_schema(tuple(pantry_foods))
+        proposal = self.client.structured(SYSTEM_PROMPT, prompt, proposal_schema, timeout=30)
         changes = self._validate(proposal, pantry_foods, source_foods, excluded)
         delta = self.reference.delta_per_serving(changes, servings)
         adapted_nutrition = self.reference.add(base_nutrition, delta)
@@ -115,3 +119,20 @@ class AdaptationService:
 
 
 adaptation_service = AdaptationService()
+
+
+def _proposal_schema(ingredient_ids: tuple[str, ...]):
+    ingredient_literal = Literal.__getitem__(ingredient_ids)
+    change_model = create_model(
+        "AllowedModelChange",
+        action=(Literal["add", "increase"], ...),
+        ingredient_id=(ingredient_literal, ...),
+        quantity_g=(float, Field(gt=0, le=500)),
+        reason=(str, Field(min_length=1, max_length=180)),
+    )
+    return create_model(
+        "AllowedModelAdaptation",
+        title=(str, Field(min_length=1, max_length=120)),
+        changes=(list[change_model], Field(min_length=1, max_length=min(3, len(ingredient_ids)))),
+        instruction_notes=(list[str], Field(default_factory=list, max_length=4)),
+    )

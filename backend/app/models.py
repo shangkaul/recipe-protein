@@ -63,7 +63,10 @@ class ServingRequest(BaseModel):
 
 class ModelChange(BaseModel):
     action: Literal["add", "increase"]
-    ingredient_id: str
+    ingredient_id: Literal[
+        "chicken", "tofu", "egg", "lentils", "chickpeas", "greek-yogurt",
+        "tuna", "shrimp", "cottage-cheese",
+    ]
     quantity_g: float = Field(gt=0, le=500)
     reason: str = Field(min_length=1, max_length=180)
 
