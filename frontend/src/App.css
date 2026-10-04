@@ -87,12 +87,21 @@
 .pantry-panel-heading h2 { font-size: 1.35rem; letter-spacing: -0.03em; margin: 0 0 7px; }
 .pantry-panel-heading p { color: var(--muted); line-height: 1.4; margin: 0; font-size: 0.9rem; }
 label { display: block; font-size: 0.82rem; font-weight: 700; margin-bottom: 7px; }
+label span { color: var(--muted); font-weight: 500; }
 textarea, input { width: 100%; color: var(--ink); background: #fbfaf6; border: 1px solid var(--stone-dark); border-radius: 10px; }
 textarea { resize: vertical; min-height: 104px; padding: 12px; line-height: 1.45; }
 input { height: 48px; padding: 0 44px 0 12px; font-variant-numeric: tabular-nums; }
 textarea::placeholder { color: #89838a; }
 textarea:focus, input:focus { border-color: var(--leaf); outline: 3px solid var(--leaf-soft); }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 17px; }
+.exclusions-label { margin-top: 17px; }
+.field-help { margin: 6px 0 0; color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
+.ingredient-chip.refined { background: #ede9fe; color: #5b3aa7; border-color: #d8cdf8; }
+.ingredient-chip.basic { background: #f5f1e8; color: #675f50; border-color: #e5ddcd; }
+.ingredient-chip small { padding-left: 4px; color: inherit; font-size: 0.62rem; font-weight: 700; opacity: 0.72; text-transform: uppercase; }
+.ingredient-chip.refined.basic { background: #ede9fe; color: #5b3aa7; border-color: #d8cdf8; }
+.parse-note { display: flex; align-items: center; gap: 6px; margin: 9px 0 0; color: #5b3aa7; font-size: 0.76rem; line-height: 1.4; }
+.parse-note.fallback { color: var(--muted); }
 .input-with-unit { position: relative; }
 .input-with-unit span { position: absolute; right: 12px; top: 14px; color: var(--muted); font-size: 0.85rem; }
 .form-note { display: flex; gap: 7px; color: var(--muted); font-size: 0.76rem; line-height: 1.4; margin: 16px 0; }
