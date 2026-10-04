@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AdaptationProposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "changes", "instruction_notes"],
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "ingredient_id", "quantity", "unit", "reason"],
+        "properties": {
+          "action": { "enum": ["add", "increase", "decrease", "remove"] },
+          "ingredient_id": { "type": "string" },
+          "quantity": { "type": ["number", "null"], "minimum": 0 },
+          "unit": { "type": ["string", "null"] },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 180 }
+        }
+      }
+    },
+    "instruction_notes": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["after_step", "text"],
+        "properties": {
+          "after_step": { "type": "integer", "minimum": 0 },
+          "text": { "type": "string", "minLength": 1, "maxLength": 300 }
+        }
+      }
+    }
+  }
+}
