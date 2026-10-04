@@ -11,6 +11,8 @@ coverage/
 test-results/
 backend/data/recipe1m*.json
 backend/data/recipes_with_nutritional_info.json
+backend/data/recipe1m*.sqlite*
+backend/data/recipe1m-images/
 .impeccable/review/
 .impeccable/build/
 .opencode/skills/
