@@ -1,0 +1,64 @@
+openapi: 3.1.0
+info:
+  title: Protein Pantry Local API
+  version: 0.1.0
+servers:
+  - url: http://localhost:5001/api
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          description: API, corpus, and Ollama status
+  /recipes/featured:
+    get:
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 30, default: 12 }
+      responses:
+        "200": { description: Browse-first eligible meal suggestions }
+  /recipes/search:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PantryRequest"
+      responses:
+        "200": { description: Ranked recipes and parsed pantry }
+        "422": { description: Invalid pantry request }
+  /recipes/{slug}:
+    get:
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Full recipe detail }
+        "404": { description: Recipe not found or ineligible }
+  /recipes/{slug}/adapt:
+    post:
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Validated grounded adaptation }
+        "409": { description: Local model unavailable or output rejected }
+components:
+  schemas:
+    PantryRequest:
+      type: object
+      required: [text, protein_target_g]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 1000 }
+        protein_target_g: { type: number, minimum: 5, maximum: 100 }
+        max_minutes: { type: [integer, "null"], minimum: 5, maximum: 240 }
+        exclusions:
+          type: array
+          items: { type: string }
+        limit: { type: integer, minimum: 1, maximum: 30, default: 24 }

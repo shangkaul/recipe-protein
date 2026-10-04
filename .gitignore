@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+node_modules/
+dist/
+coverage/
+.playwright/
+test-results/
+backend/data/recipe1m*.json
+backend/data/recipes_with_nutritional_info.json
+.impeccable/review/
+.impeccable/build/
+.opencode/skills/
