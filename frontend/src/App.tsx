@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   Check,
   Clock3,
   Leaf,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import './App.css'
 import { adaptRecipe, confirmRecipeNutrition, getFeatured, getRecipe, searchRecipes } from './services/api'
+import type { NutritionUnavailableError } from './services/api'
 import type { AdaptationResult, ConfirmedNutrition, RecipeDetail, RecipeSummary, SearchResponse } from './types/recipe'
 
 const categories = [
@@ -35,9 +37,11 @@ function App() {
   const [target, setTarget] = useState(Number(localStorage.getItem('protein-pantry:target')) || 30)
   const [maxMinutes, setMaxMinutes] = useState<number | ''>('')
   const [exclusions, setExclusions] = useState(localStorage.getItem('protein-pantry:exclusions') || '')
+  const [verifiedNutritionOnly, setVerifiedNutritionOnly] = useState(localStorage.getItem('protein-pantry:verified-nutrition') === 'true')
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const detailTrigger = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
     let current = true
@@ -64,6 +68,7 @@ function App() {
     localStorage.setItem('protein-pantry:pantry', pantry)
     localStorage.setItem('protein-pantry:target', String(target))
     localStorage.setItem('protein-pantry:exclusions', exclusions)
+    localStorage.setItem('protein-pantry:verified-nutrition', String(verifiedNutritionOnly))
     try {
       setResults(await searchRecipes({
         text: pantry,
@@ -73,6 +78,7 @@ function App() {
           .split(/[,;\n]+|\band\b/i)
           .map((value) => value.trim())
           .filter(Boolean),
+        verified_nutrition_only: verifiedNutritionOnly,
       }))
       setPantryOpen(false)
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -83,8 +89,9 @@ function App() {
     }
   }
 
-  async function openRecipe(slug: string) {
+  async function openRecipe(slug: string, trigger: HTMLButtonElement) {
     setError(null)
+    detailTrigger.current = trigger
     try {
       setDetail(await getRecipe(slug))
       document.body.classList.add('detail-is-open')
@@ -96,6 +103,7 @@ function App() {
   function closeRecipe() {
     setDetail(null)
     document.body.classList.remove('detail-is-open')
+    window.requestAnimationFrame(() => detailTrigger.current?.focus())
   }
 
   function resetBrowse() {
@@ -138,6 +146,7 @@ function App() {
               onChange={(event) => setPantry(event.target.value)}
               placeholder="e.g. eggs, leftover rice, spinach, chicken"
               rows={4}
+              maxLength={1000}
               required
             />
 
@@ -165,8 +174,18 @@ function App() {
               value={exclusions}
               onChange={(event) => setExclusions(event.target.value)}
               placeholder="e.g. mushrooms, peanuts, coconut"
+              maxLength={1000}
             />
             <p className="field-help">Separate several ingredients with commas. Red meat is always excluded.</p>
+
+            <label className="nutrition-filter">
+              <input
+                type="checkbox"
+                checked={verifiedNutritionOnly}
+                onChange={(event) => setVerifiedNutritionOnly(event.target.checked)}
+              />
+              <span><strong>Verified nutrition only</strong><small>Show recipes that support serving-based nutrition and adaptation.</small></span>
+            </label>
 
             <p className="form-note"><Target size={16} /> You choose the target. We do not provide medical advice.</p>
             <button className="primary-button" type="submit" disabled={searching || !pantry.trim()}>
@@ -185,11 +204,11 @@ function App() {
               <h1>{results ? 'Meals that fit your pantry' : 'What sounds good?'}</h1>
               <p>
                 {results
-                  ? `${results.results.length} choices ranked by pantry fit${maxMinutes === '' ? '' : `, closeness to ${maxMinutes} minutes`}, and your ${target}g protein target.`
+                  ? `${results.results.length} choices ranked by pantry fit${maxMinutes === '' ? '' : `, closeness to ${maxMinutes} minutes`}, and your ${target}g protein target.${results.verified_nutrition_only ? ' Every result has verified nutrition.' : ` ${results.nutrition_ready_count} eligible matches have verified nutrition.`}`
                   : 'Start with an idea, then make it work with what is already in your kitchen.'}
               </p>
             </div>
-            <button className="pantry-trigger" type="button" onClick={() => setPantryOpen(true)}>
+            <button className="pantry-trigger" type="button" onClick={() => setPantryOpen(true)} aria-label="Use my pantry">
               <SlidersHorizontal size={19} />
               <span>Use my pantry</span>
             </button>
@@ -283,16 +302,20 @@ function PantryStrip({ response }: { response: SearchResponse }) {
   )
 }
 
-function RecipeCard({ recipe, ranked, featured, onOpen }: { recipe: RecipeSummary; ranked: boolean; featured: boolean; onOpen: (slug: string) => void }) {
+function RecipeCard({ recipe, ranked, featured, onOpen }: { recipe: RecipeSummary; ranked: boolean; featured: boolean; onOpen: (slug: string, trigger: HTMLButtonElement) => void }) {
   return (
     <article className={`recipe-card ${featured ? 'is-featured' : ''}`}>
-      <button className="recipe-card-action" type="button" onClick={() => onOpen(recipe.slug)} aria-label={`View ${recipe.name}`}>
+      <button className="recipe-card-action" type="button" onClick={(event) => onOpen(recipe.slug, event.currentTarget)} aria-label={`View ${recipe.name}`}>
         <div className="recipe-image-wrap">
           <RecipeArtwork recipe={recipe} eager={featured} />
           {recipe.country === 'India' && <span className="image-label">Indian</span>}
         </div>
         <div className="recipe-copy">
           <div className="recipe-meta"><span>{recipe.cuisine}</span><span><Clock3 size={14} /> {recipe.total_minutes === null ? 'Time not listed' : `${recipe.total_minutes} min`}</span></div>
+          <span className={`nutrition-status ${recipe.nutrition_available ? 'is-verified' : ''}`}>
+            {recipe.nutrition_available && <BadgeCheck size={14} />}
+            {recipe.nutrition_available ? 'Verified nutrition' : 'Nutrition unavailable'}
+          </span>
           <h2>{recipe.name}</h2>
           <p className="recipe-summary">{recipe.summary}</p>
           {ranked && recipe.reasons && <p className="rank-reason">{recipe.reasons[0]}</p>}
@@ -330,7 +353,9 @@ function RecipeDrawer({ recipe, pantry, target, exclusions, onClose }: {
   exclusions: string[]
   onClose: () => void
 }) {
+  const dialogRef = useRef<HTMLElement | null>(null)
   const [servings, setServings] = useState<number | ''>(recipe.servings || '')
+  const [minimumServings, setMinimumServings] = useState<number | null>(recipe.minimum_servings ?? null)
   const [confirmed, setConfirmed] = useState<ConfirmedNutrition | null>(recipe.servings && recipe.nutrition ? {
     servings: recipe.servings,
     nutrition: recipe.nutrition,
@@ -343,6 +368,34 @@ function RecipeDrawer({ recipe, pantry, target, exclusions, onClose }: {
   const [adapting, setAdapting] = useState(false)
   const targetAlreadyMet = confirmed ? confirmed.nutrition.protein >= target : false
 
+  useEffect(() => {
+    const dialog = dialogRef.current
+    const firstButton = dialog?.querySelector<HTMLButtonElement>('button')
+    firstButton?.focus()
+  }, [])
+
+  function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onClose()
+      return
+    }
+    if (event.key !== 'Tab') return
+    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), a[href], textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) || [])
+    if (!focusable.length) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
   async function confirmServings() {
     if (servings === '') return
     setConfirming(true)
@@ -350,7 +403,14 @@ function RecipeDrawer({ recipe, pantry, target, exclusions, onClose }: {
     try {
       setConfirmed(await confirmRecipeNutrition(recipe.slug, servings))
     } catch (requestError) {
-      setAdaptationError(requestError instanceof Error ? requestError.message : 'Nutrition could not be calculated.')
+      const failure = requestError as NutritionUnavailableError
+      if (failure.minimumServings) {
+        setMinimumServings(failure.minimumServings)
+        setAdaptationError(null)
+        setServings(failure.minimumServings)
+      } else {
+        setAdaptationError(failure.message || 'Nutrition could not be calculated.')
+      }
     } finally {
       setConfirming(false)
     }
@@ -375,7 +435,7 @@ function RecipeDrawer({ recipe, pantry, target, exclusions, onClose }: {
 
   return (
     <div className="drawer-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="recipe-drawer" role="dialog" aria-modal="true" aria-labelledby="recipe-title">
+      <section ref={dialogRef} className="recipe-drawer" role="dialog" aria-modal="true" aria-labelledby="recipe-title" onKeyDown={handleDialogKeyDown}>
         <div className="drawer-bar">
           <button className="back-link" type="button" onClick={onClose}><ArrowLeft size={19} /> Back to meals</button>
           <button className="icon-button" type="button" onClick={onClose} aria-label="Close recipe"><X size={21} /></button>
@@ -422,11 +482,16 @@ function RecipeDrawer({ recipe, pantry, target, exclusions, onClose }: {
             </div>
             {!pantry.trim() ? (
               <p className="adaptation-message">Add your ingredients in the pantry search before requesting an adaptation.</p>
+            ) : !recipe.nutrition_available ? (
+              <p className="adaptation-unavailable"><strong>Adaptation is unavailable for this recipe.</strong> Its source does not include enough verified ingredient nutrition to calculate a trustworthy result. Return to search and turn on “Verified nutrition only” to avoid this dead end.</p>
             ) : (
               <>
                 {recipe.servings === null && !confirmed && (
                   <div className="serving-confirmation">
                     <label htmlFor="adaptation-servings">How many servings will this recipe make?</label>
+                    {minimumServings && minimumServings > 1 && (
+                      <small className="serving-floor">This recipe only divides into a plausible portion at {minimumServings} servings or more, so we have filled that in for you.</small>
+                    )}
                     <div>
                       <input id="adaptation-servings" type="number" min="1" max="24" value={servings} onChange={(event) => setServings(event.target.value === '' ? '' : Number(event.target.value))} />
                       <button className="secondary-button" type="button" disabled={confirming || servings === ''} onClick={confirmServings}>{confirming ? 'Calculating…' : 'Confirm servings'}</button>

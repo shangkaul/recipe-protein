@@ -1,0 +1,6 @@
+.venv
+__pycache__
+.pytest_cache
+tests
+data/recipe1m.sqlite*
+data/recipe1m-images

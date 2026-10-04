@@ -201,24 +201,46 @@ def _plausible_nutrition(protein, calories, fat) -> bool:
     )
 
 
+# Absolute ceilings for one household recipe. Recipe1M quantity parsing occasionally turns a normal
+# measure into a multi-kilogram ingredient, which still yields believable per-100g values. Without
+# these absolute bounds such a record passes every ratio check and then produces an absurd
+# per-serving result once a user confirms one serving.
+MAX_RECIPE_WEIGHT_G = 10_000
+MAX_INGREDIENT_WEIGHT_G = 5_000
+MAX_KCAL_PER_GRAM = 6.0
+
+
+def _plausible_recipe_scale(total_weight: float, totals: dict) -> bool:
+    if total_weight > MAX_RECIPE_WEIGHT_G:
+        return False
+    # Protein cannot exceed the mass of food it is measured in.
+    if totals["protein"] > total_weight:
+        return False
+    # Cooked food runs roughly 0.5-6 kcal/g; anything denser is a parsing artifact.
+    return totals["calories"] / total_weight <= MAX_KCAL_PER_GRAM
+
+
 def _validated_recipe_totals(weights: list, nutrients: list, per_100g: tuple) -> dict | None:
     if not weights or len(weights) != len(nutrients) or not _plausible_nutrition(*per_100g):
         return None
-    if not all(isinstance(weight, (int, float)) and math.isfinite(weight) and 0 < weight <= 10_000 for weight in weights):
+    if not all(
+        isinstance(weight, (int, float)) and math.isfinite(weight) and 0 < weight <= MAX_INGREDIENT_WEIGHT_G
+        for weight in weights
+    ):
         return None
     total_weight = sum(weights)
-    if total_weight > 50_000:
-        return None
     totals = {"protein": 0.0, "calories": 0.0, "fat": 0.0}
     for weight, values in zip(weights, nutrients):
         row = (values.get("pro"), values.get("nrg"), values.get("fat"))
         if not all(isinstance(value, (int, float)) and math.isfinite(value) and value >= 0 for value in row):
             return None
-        if row[0] > weight * 1.05 or row[1] > weight * 10 or row[2] > weight * 1.05:
+        if row[0] > weight * 1.05 or row[1] > weight * MAX_KCAL_PER_GRAM or row[2] > weight * 1.05:
             return None
         totals["protein"] += row[0]
         totals["calories"] += row[1]
         totals["fat"] += row[2]
+    if not _plausible_recipe_scale(total_weight, totals):
+        return None
     for total, stated in zip((totals["protein"], totals["calories"], totals["fat"]), per_100g):
         calculated = total / total_weight * 100
         if abs(calculated - stated) > max(1.0, stated * 0.03):

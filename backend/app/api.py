@@ -36,7 +36,7 @@ def search():
         return jsonify({"error": "Check your pantry details", "details": error.errors(include_url=False)}), 422
     return jsonify(catalog.search(
         payload.text, payload.protein_target_g, payload.preferred_minutes,
-        payload.exclusions, payload.limit,
+        payload.exclusions, payload.limit, payload.verified_nutrition_only,
     ))
 
 
@@ -66,7 +66,17 @@ def confirmed_nutrition(slug: str):
         return jsonify({"error": "Recipe not found"}), 404
     result = catalog.nutrition_for_servings(slug, payload.servings)
     if not result:
-        return jsonify({"error": "Verified ingredient nutrition is unavailable for this recipe"}), 422
+        minimum = catalog.minimum_servings(slug)
+        if minimum:
+            return jsonify({
+                "error": f"This recipe only divides into a plausible portion at {minimum} servings or more",
+                "reason": "servings_too_low",
+                "minimum_servings": minimum,
+            }), 422
+        return jsonify({
+            "error": "Verified ingredient nutrition is unavailable for this recipe",
+            "reason": "nutrition_unavailable",
+        }), 422
     return jsonify(result)
 
 
@@ -97,6 +107,9 @@ def adapt_recipe(slug: str):
             "ingredient_not_in_source": "The proposed increase was not present in the source recipe",
             "excluded_ingredient": "The proposal used an ingredient you chose to avoid",
             "unsafe_proposal": "The proposal did not pass the red-meat safety check",
+            "impractical_quantity": "The local proposal used an impractical quantity, so it was not applied",
+            "excessive_quantity": "The local proposal asked for more than a practical kitchen amount",
+            "no_meaningful_increase": "None of your pantry ingredients would meaningfully raise the protein in this recipe",
         }
         return jsonify({
             "error": messages.get(error.reason, "This adaptation could not be safely validated"),

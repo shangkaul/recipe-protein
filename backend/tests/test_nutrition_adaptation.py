@@ -58,8 +58,12 @@ def test_nutrient_delta_is_server_calculated_from_usda_record():
         source_recipe(), "tofu, rice", 30, [], 2,
         {"protein": 18, "calories": 420, "fat": 12, "carbs": 55},
     )
-    assert result["nutrition_delta"] == {"protein": 4.5, "calories": 39.0, "fat": 2.1}
-    assert result["adapted_nutrition"]["protein"] == 22.5
+    # The host solves 9.04 g protein per 100 g of firm tofu for the 12 g per-serving gap across
+    # 2 servings, which is 265 g. Every number below comes from Python arithmetic on the USDA record.
+    assert result["changes"][0]["quantity_g"] == 265
+    assert result["nutrition_delta"] == {"protein": 12.0, "calories": 103.3, "fat": 5.5}
+    assert result["adapted_nutrition"]["protein"] == 30.0
+    assert result["protein_difference_g"] == 0.0
     assert result["changes"][0]["fdc_id"] == 172448
     assert result["nutrition_source"]["name"].startswith("USDA FoodData Central")
 
@@ -86,6 +90,28 @@ def test_adaptation_rejects_excluded_and_unsafe_proposals():
         unsafe.adapt(source_recipe(), "tofu", 30, [], 2, {"protein": 18, "calories": 420, "fat": 12, "carbs": 55})
 
 
+def test_host_scales_token_model_quantities_to_a_practical_amount():
+    service = AdaptationService(StubClient(proposal(quantity_g=1)))
+    result = service.adapt(
+        source_recipe(), "tofu", 30, [], 2,
+        {"protein": 18, "calories": 420, "fat": 12, "carbs": 55},
+    )
+    # The model asked for 1 g; the host set a kitchen-real quantity that covers the 12 g gap.
+    assert result["changes"][0]["quantity_g"] >= 25
+    assert result["adapted_nutrition"]["protein"] >= 30
+    assert result["protein_difference_g"] >= -0.1
+
+
+def test_adaptation_rejects_insignificant_and_excessive_quantities():
+    weak = AdaptationService(StubClient(proposal(quantity_g=25)))
+    with pytest.raises(AdaptationFailure, match="no_meaningful_increase"):
+        weak.adapt(source_recipe(), "tofu", 30, [], 4, {"protein": 29.5, "calories": 420, "fat": 12, "carbs": 55})
+
+    excessive = AdaptationService(StubClient(proposal(quantity_g=900)))
+    with pytest.raises(AdaptationFailure, match="excessive_quantity"):
+        excessive.adapt(source_recipe(), "tofu", 30, [], 2, {"protein": 18, "calories": 420, "fat": 12, "carbs": 55})
+
+
 def test_adaptation_does_not_add_protein_when_target_is_already_met():
     service = AdaptationService(StubClient(proposal()))
     with pytest.raises(AdaptationFailure, match="target_already_met"):
@@ -103,6 +129,26 @@ def test_recipe1m_totals_require_consistent_grounded_inputs():
     assert _validated_recipe_totals([100_000], [{"pro": 1, "nrg": 1, "fat": 1}], (1, 1, 1)) is None
 
 
+def test_recipe1m_rejects_batch_scale_records_that_pass_every_ratio_check():
+    # A garbled quantity that inflates one recipe to 11 kg still has believable per-100g values,
+    # so ratio checks alone let it through and it later divides into an impossible serving.
+    oversized = _validated_recipe_totals(
+        [11_275], [{"pro": 570.0, "nrg": 2062.0, "fat": 200.0}], (5.06, 18.3, 1.78)
+    )
+    assert oversized is None
+
+    energy_dense = _validated_recipe_totals(
+        [1_000], [{"pro": 200, "nrg": 9_000, "fat": 100}], (20, 900, 10)
+    )
+    assert energy_dense is None
+
+    # More protein than the mass of food it is measured in.
+    impossible_mass = _validated_recipe_totals(
+        [100], [{"pro": 140, "nrg": 560, "fat": 0}], (140, 560, 0)
+    )
+    assert impossible_mass is None
+
+
 def test_reference_resolves_only_supported_pantry_foods():
     matched = nutrition_reference.pantry_foods("leftover rice, tofu and dahi")
     assert set(matched) == {"tofu", "greek-yogurt"}
@@ -117,7 +163,9 @@ def test_adaptation_api_returns_only_validated_server_nutrition(monkeypatch):
     assert response.status_code == 200
     assert response.json["model"] == "gemma-test"
     assert response.json["changes"][0]["fdc_id"] == 172448
-    assert response.json["nutrition_delta"]["protein"] == 2.3
+    assert response.json["nutrition_delta"]["protein"] == 11.0
+    # Miso soup supplies 9 g per serving against a 20 g target, so 11 g is the gap the host closed.
+    assert response.json["adapted_nutrition"]["protein"] == 20.0
 
 
 def test_adaptation_api_requires_a_real_recipe_and_valid_request():

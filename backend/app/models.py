@@ -8,6 +8,7 @@ class PantryRequest(BaseModel):
     protein_target_g: float = Field(default=30, ge=5, le=100)
     preferred_minutes: int | None = Field(default=None, ge=5, le=240)
     exclusions: list[str] = Field(default_factory=list)
+    verified_nutrition_only: bool = False
     limit: int = Field(default=24, ge=1, le=30)
 
     @field_validator("text")

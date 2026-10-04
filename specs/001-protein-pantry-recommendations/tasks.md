@@ -36,5 +36,5 @@
 ## Phase 5: Finish
 
 - [ ] T021 [US4] Add grounded snack/boost suggestions from eligible corpus data.
-- [ ] T022 Run accessibility, responsive, PWA, and Impeccable audits.
-- [ ] T023 Validate quickstart and prepare demo fixtures.
+- [x] T022 Run accessibility, responsive, PWA, and Impeccable audits.
+- [x] T023 Validate quickstart and prepare demo fixtures.
