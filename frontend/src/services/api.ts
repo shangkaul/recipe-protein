@@ -1,4 +1,4 @@
-import type { RecipeDetail, RecipeSummary, SearchResponse } from '../types/recipe'
+import type { AdaptationResult, ConfirmedNutrition, RecipeDetail, RecipeSummary, SearchResponse } from '../types/recipe'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -32,4 +32,17 @@ export async function searchRecipes(payload: {
 
 export async function getRecipe(slug: string): Promise<RecipeDetail> {
   return getJson(`/recipes/${slug}`)
+}
+
+export async function confirmRecipeNutrition(slug: string, servings: number): Promise<ConfirmedNutrition> {
+  return getJson(`/recipes/${slug}/nutrition`, { method: 'POST', body: JSON.stringify({ servings }) })
+}
+
+export async function adaptRecipe(slug: string, payload: {
+  pantry: string
+  protein_target_g: number
+  exclusions: string[]
+  servings: number | null
+}): Promise<AdaptationResult> {
+  return getJson(`/recipes/${slug}/adapt`, { method: 'POST', body: JSON.stringify(payload) })
 }

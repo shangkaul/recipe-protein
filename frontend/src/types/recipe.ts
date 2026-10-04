@@ -40,6 +40,42 @@ export interface RecipeDetail extends RecipeSummary {
   source: { attribution: string; homepage: string; license: string; licenseUrl: string }
 }
 
+export interface NutritionValues {
+  protein: number
+  calories: number
+  fat: number
+  carbs: number | null
+}
+
+export interface ConfirmedNutrition {
+  servings: number
+  nutrition: NutritionValues
+  basis: 'source_per_serving' | 'user_confirmed_servings'
+  source: string
+  recipe_weight_g?: number
+}
+
+export interface AdaptationResult {
+  title: string
+  source_slug: string
+  servings: number
+  changes: Array<{
+    action: 'add' | 'increase'
+    ingredient_id: string
+    name: string
+    quantity_g: number
+    reason: string
+    fdc_id: number
+  }>
+  instruction_notes: string[]
+  original_nutrition: NutritionValues
+  nutrition_delta: { protein: number; calories: number; fat: number }
+  adapted_nutrition: NutritionValues
+  protein_difference_g: number
+  nutrition_source: { name: string; homepage: string; license: string; basis: string }
+  model: string
+}
+
 export interface SearchResponse {
   parsed_pantry: {
     display_terms: string[]

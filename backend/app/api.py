@@ -93,5 +93,11 @@ def adapt_recipe(slug: str):
     except AdaptationFailure as error:
         return jsonify({"error": "This adaptation could not be safely validated", "reason": error.reason}), 422
     except LocalModelError as error:
-        return jsonify({"error": "Local adaptation is unavailable", "reason": error.reason}), 503
+        messages = {
+            "service_unavailable": "Start Ollama on this device, then try the adaptation again",
+            "model_missing": f"Install the {adaptation_service.client.model} model in Ollama, then try again",
+            "timeout": "The local model took too long; the original recipe is unchanged",
+            "invalid_output": "The local proposal could not be safely validated; the original recipe is unchanged",
+        }
+        return jsonify({"error": messages.get(error.reason, "Local adaptation is unavailable"), "reason": error.reason}), 503
     return jsonify(result)

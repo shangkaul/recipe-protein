@@ -1,7 +1,8 @@
 import pytest
 
+from app import create_app
 from app.models import ModelAdaptation
-from app.services.adaptation import AdaptationFailure, AdaptationService
+from app.services.adaptation import AdaptationFailure, AdaptationService, adaptation_service
 from app.services.nutrition import nutrition_reference
 from scripts.build_recipe1m_index import _validated_recipe_totals
 
@@ -87,3 +88,22 @@ def test_recipe1m_totals_require_consistent_grounded_inputs():
 def test_reference_resolves_only_supported_pantry_foods():
     matched = nutrition_reference.pantry_foods("leftover rice, tofu and dahi")
     assert set(matched) == {"tofu", "greek-yogurt"}
+
+
+def test_adaptation_api_returns_only_validated_server_nutrition(monkeypatch):
+    monkeypatch.setattr(adaptation_service, "client", StubClient(proposal()))
+    client = create_app(testing=True).test_client()
+    response = client.post("/api/recipes/miso-soup/adapt", json={
+        "pantry": "tofu", "protein_target_g": 20, "exclusions": [],
+    })
+    assert response.status_code == 200
+    assert response.json["model"] == "gemma-test"
+    assert response.json["changes"][0]["fdc_id"] == 172448
+    assert response.json["nutrition_delta"]["protein"] == 2.3
+
+
+def test_adaptation_api_requires_a_real_recipe_and_valid_request():
+    client = create_app(testing=True).test_client()
+    assert client.post("/api/recipes/not-real/adapt", json={"pantry": "tofu"}).status_code == 404
+    response = client.post("/api/recipes/miso-soup/adapt", json={"pantry": "", "servings": 0})
+    assert response.status_code == 422
