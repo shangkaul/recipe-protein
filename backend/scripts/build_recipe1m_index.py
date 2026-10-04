@@ -27,6 +27,10 @@ CREATE TABLE recipes (
     protein_per_100g REAL,
     calories_per_100g REAL,
     fat_per_100g REAL
+    ,recipe_weight_g REAL
+    ,protein_total REAL
+    ,calories_total REAL
+    ,fat_total REAL
 );
 CREATE VIRTUAL TABLE recipe_fts USING fts5(
     recipe_id UNINDEXED, title, ingredients_json, instructions_json,
@@ -132,7 +136,7 @@ def build_index(layer1: Path, output: Path, layer2: Path | None = None, nutritio
         images = _attach_images(connection, layer2) if layer2 else 0
         nutrition_count = _attach_nutrition(connection, nutrition) if nutrition else 0
         metadata = {
-            "schema_version": "1", "source_recipes": str(scanned), "safe_recipes": str(safe),
+            "schema_version": "2", "source_recipes": str(scanned), "safe_recipes": str(safe),
             "excluded_recipes": str(excluded), "image_recipes": str(images),
             "nutrition_recipes": str(nutrition_count), "complete": "1",
         }
@@ -170,12 +174,20 @@ def _attach_nutrition(connection: sqlite3.Connection, path: Path) -> int:
     for item in iter_json_array(path):
         values = item.get("nutr_values_per100g") or {}
         protein, calories, fat = values.get("protein"), values.get("energy"), values.get("fat")
-        if not _plausible_nutrition(protein, calories, fat):
+        weights = item.get("weight_per_ingr") or []
+        ingredient_values = item.get("nutr_per_ingredient") or []
+        totals = _validated_recipe_totals(weights, ingredient_values, (protein, calories, fat))
+        if not totals:
             continue
         cursor = connection.execute(
-            """UPDATE recipes SET protein_per_100g = ?, calories_per_100g = ?, fat_per_100g = ?
+            """UPDATE recipes SET protein_per_100g = ?, calories_per_100g = ?, fat_per_100g = ?,
+               recipe_weight_g = ?, protein_total = ?, calories_total = ?, fat_total = ?
                WHERE recipe_id = ?""",
-            (round(protein, 2), round(calories, 2), round(fat, 2), item.get("id")),
+            (
+                round(protein, 2), round(calories, 2), round(fat, 2),
+                round(totals["weight"], 2), round(totals["protein"], 2),
+                round(totals["calories"], 2), round(totals["fat"], 2), item.get("id"),
+            ),
         )
         attached += cursor.rowcount
     connection.commit()
@@ -187,6 +199,31 @@ def _plausible_nutrition(protein, calories, fat) -> bool:
     return all(isinstance(value, (int, float)) and math.isfinite(value) for value in values) and (
         0 <= protein <= 100 and 0 <= calories <= 900 and 0 <= fat <= 100
     )
+
+
+def _validated_recipe_totals(weights: list, nutrients: list, per_100g: tuple) -> dict | None:
+    if not weights or len(weights) != len(nutrients) or not _plausible_nutrition(*per_100g):
+        return None
+    if not all(isinstance(weight, (int, float)) and math.isfinite(weight) and 0 < weight <= 10_000 for weight in weights):
+        return None
+    total_weight = sum(weights)
+    if total_weight > 50_000:
+        return None
+    totals = {"protein": 0.0, "calories": 0.0, "fat": 0.0}
+    for weight, values in zip(weights, nutrients):
+        row = (values.get("pro"), values.get("nrg"), values.get("fat"))
+        if not all(isinstance(value, (int, float)) and math.isfinite(value) and value >= 0 for value in row):
+            return None
+        if row[0] > weight * 1.05 or row[1] > weight * 10 or row[2] > weight * 1.05:
+            return None
+        totals["protein"] += row[0]
+        totals["calories"] += row[1]
+        totals["fat"] += row[2]
+    for total, stated in zip((totals["protein"], totals["calories"], totals["fat"]), per_100g):
+        calculated = total / total_weight * 100
+        if abs(calculated - stated) > max(1.0, stated * 0.03):
+            return None
+    return {"weight": total_weight, **totals}
 
 
 def main() -> None:

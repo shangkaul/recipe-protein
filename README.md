@@ -25,10 +25,15 @@ a practical protein target.
 - Structured model output is validated against the bundled ingredient vocabulary before retrieval
 - Search remains useful when Gemma or Ollama is unavailable
 - Optional private Recipe1M SQLite/FTS5 index for broader local recipe coverage
+- Progress-preserving pantry search: current meals remain visible while replacements are ranked
+- User-triggered local Gemma adaptation of one selected, attributed source recipe
+- Deterministic adaptation nutrition from a local USDA FoodData Central reference
+- User-confirmed serving yield before Recipe1M per-serving nutrition is displayed
 - No account, health profile, or cloud AI fallback
 
-Grounded selected-recipe adaptation and deterministic post-adaptation nutrition calculation are
-planned in the next checkpoint. Model-generated nutrition will never be displayed.
+Gemma proposes only bounded ingredient operations and method notes. Python validates pantry fit,
+exclusions, red-meat safety, quantities, and nutrition before an adaptation is displayed. Model-
+generated nutrition and model-guessed serving counts are never accepted.
 
 ## Architecture
 
@@ -42,7 +47,9 @@ Local Flask API
   ├── red-meat safety filter
   ├── BM25 retrieval and deterministic ranking
   ├── versioned public recipe corpus
-  └── optional local Recipe1M FTS5 index
+  ├── optional local Recipe1M FTS5 index
+  ├── closed-schema local Gemma adaptation
+  └── deterministic USDA-backed nutrition validation
         │
         └── grounded local Ollama adaptation (next checkpoint)
 ```
@@ -79,6 +86,22 @@ The generated `backend/data/recipe1m.sqlite` and on-demand image cache are ignor
 `RECIPE1M_DB_PATH` or `RECIPE1M_IMAGE_CACHE` to use other local paths. Recipe1M records do not
 provide reliable serving counts or cooking times, so those fields remain unavailable. Its optional
 nutrition subset is labelled per 100g and is never presented as per-serving nutrition.
+
+When ingredient-level Recipe1M nutrition passes import validation, the detail view can calculate
+per-serving values after the user confirms how many servings the recipe will make. Recipes outside
+that validated subset continue to show nutrition as unavailable.
+
+### Grounded local adaptation
+
+After searching a pantry and opening a recipe, choose **Adapt using my pantry**. For Recipe1M
+recipes, confirm the serving yield first. Gemma runs through the configured loopback-only Ollama
+service and may propose one to three additions or increases from the supported pantry ingredients.
+Unknown, excluded, unsafe, non-pantry, excessive, or unverifiable changes are rejected.
+
+Protein, calories, and fat deltas are calculated in Python from the bundled compact reference in
+`backend/data/nutrient-reference.json`. Those records retain their USDA FoodData Central IDs,
+descriptions, per-100g basis, retrieval date, and public-domain provenance. The application makes no
+runtime requests to USDA, and the model never supplies nutrient values.
 
 ## Run locally
 
@@ -145,6 +168,8 @@ The local model feature has its own Spec Kit packet in
 [`specs/002-local-gemma-adaptation/`](specs/002-local-gemma-adaptation/).
 The private Recipe1M index is specified in
 [`specs/003-local-recipe1m-index/`](specs/003-local-recipe1m-index/).
+Deterministic nutrition and grounded adaptation are specified in
+[`specs/004-nutrition-adaptation/`](specs/004-nutrition-adaptation/).
 
 Important guarantees are captured in the
 [`project constitution`](.specify/memory/constitution.md): deterministic nutrition, grounded local

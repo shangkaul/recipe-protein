@@ -14,6 +14,7 @@ DEFAULT_DB_PATH = Path(__file__).parents[2] / "data" / "recipe1m.sqlite"
 DEFAULT_IMAGE_CACHE = Path(__file__).parents[2] / "data" / "recipe1m-images"
 QUERY_TOKEN_RE = re.compile(r"[a-z0-9]+")
 QUERY_STOPWORDS = {"and", "or", "the", "with", "some", "my", "a", "an", "of"}
+SCHEMA_VERSION = "2"
 LOCAL_PANTRY_TERMS = {
     "pasta", "spaghetti", "penne", "macaroni", "linguine", "fettuccine", "rigatoni",
     "tagliatelle", "vermicelli", "noodles", "ramen", "soba", "udon",
@@ -35,9 +36,13 @@ class Recipe1MIndex:
             return False
         try:
             with self._connect() as connection:
-                return connection.execute(
+                complete = connection.execute(
                     "SELECT 1 FROM metadata WHERE key = 'complete' AND value = '1'"
                 ).fetchone() is not None
+                schema = connection.execute(
+                    "SELECT value FROM metadata WHERE key = 'schema_version'"
+                ).fetchone()
+                return complete and schema is not None and schema[0] == SCHEMA_VERSION
         except sqlite3.Error:
             return False
 
@@ -119,6 +124,30 @@ class Recipe1MIndex:
             "nutrition_basis": "per_100g" if row["protein_per_100g"] is not None else None,
         })
         return record
+
+    def nutrition_for_servings(self, slug: str, servings: int) -> dict | None:
+        recipe_id = self.recipe_id(slug)
+        if not recipe_id or not self.available:
+            return None
+        with self._connect() as connection:
+            row = connection.execute(
+                """SELECT protein_total, calories_total, fat_total, recipe_weight_g
+                   FROM recipes WHERE recipe_id = ?""", (recipe_id,)
+            ).fetchone()
+        if not row or row["protein_total"] is None:
+            return None
+        return {
+            "servings": servings,
+            "nutrition": {
+                "protein": round(row["protein_total"] / servings, 1),
+                "calories": round(row["calories_total"] / servings, 1),
+                "fat": round(row["fat_total"] / servings, 1),
+                "carbs": None,
+            },
+            "basis": "user_confirmed_servings",
+            "recipe_weight_g": row["recipe_weight_g"],
+            "source": "Recipe1M ingredient-level nutrition subset",
+        }
 
     def cached_image(self, recipe_id: str) -> Path | None:
         if not re.fullmatch(r"[a-f0-9]{10}", recipe_id) or not self.available:

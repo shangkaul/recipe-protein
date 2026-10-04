@@ -20,14 +20,14 @@
 
 ## Phase 3: User Story 2 — Grounded Recipe Adaptation
 
-- [ ] T013 [US2] Add adaptation proposal models and closed operation schema.
-- [ ] T014 [US2] Add attributed local nutrient records and supported unit conversions.
-- [ ] T015 [US2] Build grounded adaptation prompt from one source recipe and allowed operations.
-- [ ] T016 [US2] Validate schema, canonical ingredients, exclusions, red meat, and quantities.
-- [ ] T017 [US2] Apply changes and calculate deterministic nutrition deltas.
-- [ ] T018 [US2] Add adaptation endpoint and actionable failure responses.
-- [ ] T019 [US2] Build original-versus-adapted comparison in the recipe detail flow.
-- [ ] T020 [US2] Add model, safety, nutrition, contract, and UI tests.
+- [x] T013 [US2] Add adaptation proposal models and closed operation schema.
+- [x] T014 [US2] Add attributed local nutrient records and supported unit conversions.
+- [x] T015 [US2] Build grounded adaptation prompt from one source recipe and allowed operations.
+- [x] T016 [US2] Validate schema, canonical ingredients, exclusions, red meat, and quantities.
+- [x] T017 [US2] Apply changes and calculate deterministic nutrition deltas.
+- [x] T018 [US2] Add adaptation endpoint and actionable failure responses.
+- [x] T019 [US2] Build original-versus-adapted comparison in the recipe detail flow.
+- [x] T020 [US2] Add model, safety, nutrition, contract, and UI tests.
 - [ ] T021 [US2] Run local end-to-end adaptation fixtures and raise checkpoint PR.
 
 ## Phase 4: Delivery Hardening

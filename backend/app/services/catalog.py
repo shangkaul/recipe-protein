@@ -118,6 +118,17 @@ class RecipeCatalog:
         })
         return result
 
+    def nutrition_for_servings(self, slug: str, servings: int) -> dict | None:
+        recipe = self.by_slug.get(slug)
+        if recipe:
+            return {
+                "servings": recipe["baseServings"],
+                "nutrition": recipe["nutritionPerServing"],
+                "basis": "source_per_serving",
+                "source": self.meta["attribution"],
+            }
+        return self.local_index.nutrition_for_servings(slug, servings)
+
     def featured(self, limit: int = 12, category: str | None = None) -> list[dict]:
         pool = [recipe for recipe in self.recipes if not category or recipe["category"] == category]
         pool.sort(key=lambda recipe: (

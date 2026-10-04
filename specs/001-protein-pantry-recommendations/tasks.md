@@ -26,12 +26,12 @@
 
 ## Phase 4: Local Adaptation
 
-- [ ] T016 [US3] Define Ollama structured-output schemas and prompts for ambiguous pantry parsing
+- [x] T016 [US3] Define Ollama structured-output schemas and prompts for ambiguous pantry parsing
   and selected-recipe adaptation.
-- [ ] T017 [US3] Validate model changes against ingredient and dietary constraints.
-- [ ] T018 [US3] Calculate nutrition deltas from attributed local records.
-- [ ] T019 [US3] Build original-versus-adapted comparison UI and failure fallback.
-- [ ] T020 [US3] Add mocked model and validation tests.
+- [x] T017 [US3] Validate model changes against ingredient and dietary constraints.
+- [x] T018 [US3] Calculate nutrition deltas from attributed local records.
+- [x] T019 [US3] Build original-versus-adapted comparison UI and failure fallback.
+- [x] T020 [US3] Add mocked model and validation tests.
 
 ## Phase 5: Finish
 
