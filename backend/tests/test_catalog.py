@@ -19,6 +19,8 @@ def test_search_returns_ranked_explanations():
     assert result["results"]
     assert len(result["results"]) <= 10
     assert result["results"][0]["reasons"]
+    assert all("nutrition_available" in item for item in result["results"])
+    assert result["nutrition_ready_count"] <= result["total_eligible"]
 
 
 def test_space_separated_pantry_recognizes_multiple_ingredients():
@@ -85,6 +87,18 @@ def test_api_rejects_empty_pantry():
     client = create_app(testing=True).test_client()
     response = client.post("/api/recipes/search", json={"text": "", "protein_target_g": 30})
     assert response.status_code == 422
+
+
+def test_api_accepts_verified_nutrition_filter():
+    client = create_app(testing=True).test_client()
+    response = client.post("/api/recipes/search", json={
+        "text": "tofu rice",
+        "protein_target_g": 30,
+        "verified_nutrition_only": True,
+    })
+    assert response.status_code == 200
+    assert response.json["verified_nutrition_only"] is True
+    assert all(item["nutrition_available"] for item in response.json["results"])
 
 
 def test_recipe_detail_has_attribution():

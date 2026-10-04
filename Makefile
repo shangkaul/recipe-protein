@@ -1,4 +1,4 @@
-.PHONY: setup setup-ai dev test build
+.PHONY: setup setup-ai dev test build deploy deploy-down
 
 setup:
 	python3 -m venv backend/.venv
@@ -18,3 +18,9 @@ test:
 
 build:
 	npm run build --prefix frontend
+
+deploy:
+	docker compose up --build
+
+deploy-down:
+	docker compose down

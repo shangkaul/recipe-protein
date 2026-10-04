@@ -98,6 +98,7 @@ class RecipeCatalog:
             "total_minutes": recipe["totalMinutes"],
             "protein_g": recipe["nutritionPerServing"]["protein"],
             "calories": recipe["nutritionPerServing"]["calories"],
+            "nutrition_available": True,
             "photo": photo,
             "corpus": "unitools",
         }
@@ -117,6 +118,11 @@ class RecipeCatalog:
             "nutrition": recipe["nutritionPerServing"], "source": recipe["source"],
         })
         return result
+
+    def minimum_servings(self, slug: str) -> int | None:
+        if slug in self.by_slug:
+            return 1
+        return self.local_index.minimum_servings(slug)
 
     def nutrition_for_servings(self, slug: str, servings: int) -> dict | None:
         recipe = self.by_slug.get(slug)
@@ -138,7 +144,15 @@ class RecipeCatalog:
         ))
         return [self.summary(recipe) for recipe in pool[:limit]]
 
-    def search(self, pantry_text: str, target: float, preferred_minutes: int | None, exclusions: list[str], limit: int) -> dict:
+    def search(
+        self,
+        pantry_text: str,
+        target: float,
+        preferred_minutes: int | None,
+        exclusions: list[str],
+        limit: int,
+        verified_nutrition_only: bool = False,
+    ) -> dict:
         parsed = pantry_refinement.refine(
             pantry_text, parse_pantry(pantry_text, self.known_terms), self.known_terms,
         )
@@ -195,7 +209,11 @@ class RecipeCatalog:
                 "reasons": reasons[:3] or ["Relevant to your pantry"],
             })
         local_terms = list(dict.fromkeys([*core_terms, *parsed["display_terms"]]))
-        local_candidates = self.local_index.search(local_terms, excluded)
+        local_candidates = self.local_index.search(
+            local_terms,
+            excluded,
+            verified_nutrition_only=verified_nutrition_only,
+        )
         max_local_lexical = max((recipe["lexical_score"] for recipe in local_candidates), default=0.0)
         for recipe in local_candidates:
             ingredient_terms = {normalize(ingredient) for ingredient in recipe["ingredients_text"]}
@@ -240,9 +258,15 @@ class RecipeCatalog:
             })
         ranked.sort(key=lambda item: (
             item["full_core_match"], item["pantry_coverage"],
-            len(item["matched_core_ingredients"]), item["score"],
+            len(item["matched_core_ingredients"]), item["score"], item["nutrition_available"],
         ), reverse=True)
-        return {"parsed_pantry": parsed, "results": ranked[:limit], "total_eligible": len(ranked)}
+        return {
+            "parsed_pantry": parsed,
+            "results": ranked[:limit],
+            "total_eligible": len(ranked),
+            "nutrition_ready_count": sum(1 for item in ranked if item["nutrition_available"]),
+            "verified_nutrition_only": verified_nutrition_only,
+        }
 
 
 catalog = RecipeCatalog()

@@ -15,6 +15,11 @@ DEFAULT_IMAGE_CACHE = Path(__file__).parents[2] / "data" / "recipe1m-images"
 QUERY_TOKEN_RE = re.compile(r"[a-z0-9]+")
 QUERY_STOPWORDS = {"and", "or", "the", "with", "some", "my", "a", "an", "of"}
 SCHEMA_VERSION = "2"
+# A single human serving cannot hold more than this. Values beyond it mean the recipe's yield or
+# the confirmed serving count is wrong, so no per-serving figure is returned.
+MAX_SERVING_PROTEIN_G = 150
+MAX_SERVING_CALORIES = 1_500
+MAX_CONFIRMED_SERVINGS = 24
 LOCAL_PANTRY_TERMS = {
     "pasta", "spaghetti", "penne", "macaroni", "linguine", "fettuccine", "rigatoni",
     "tagliatelle", "vermicelli", "noodles", "ramen", "soba", "udon",
@@ -64,17 +69,33 @@ class Recipe1MIndex:
         connection.execute("PRAGMA query_only = ON")
         return connection
 
-    def search(self, terms: list[str], exclusions: set[str], limit: int = 160) -> list[dict]:
+    def search(
+        self,
+        terms: list[str],
+        exclusions: set[str],
+        limit: int = 160,
+        verified_nutrition_only: bool = False,
+    ) -> list[dict]:
         if not self.available:
             return []
         query = self._fts_query(terms)
         if not query:
             return []
-        sql = """
+        nutrition_clause = ""
+        if verified_nutrition_only:
+            # Mirror minimum_servings in SQL so the filter only offers recipes the user can
+            # actually divide into a plausible portion.
+            nutrition_clause = (
+                "AND recipes.protein_total IS NOT NULL"
+                f" AND recipes.protein_total <= {MAX_SERVING_PROTEIN_G * MAX_CONFIRMED_SERVINGS}"
+                f" AND recipes.calories_total <= {MAX_SERVING_CALORIES * MAX_CONFIRMED_SERVINGS}"
+            )
+        sql = f"""
             SELECT recipes.*, -bm25(recipe_fts, 0.0, 8.0, 5.0, 1.0) AS lexical_score
             FROM recipe_fts
             JOIN recipes ON recipes.rowid = recipe_fts.rowid
             WHERE recipe_fts MATCH ?
+            {nutrition_clause}
             ORDER BY bm25(recipe_fts, 0.0, 8.0, 5.0, 1.0)
             LIMIT ?
         """
@@ -125,6 +146,38 @@ class Recipe1MIndex:
         })
         return record
 
+    def minimum_servings(self, slug: str) -> int | None:
+        recipe_id = self.recipe_id(slug)
+        if not recipe_id or not self.available:
+            return None
+        try:
+            with self._connect() as connection:
+                row = connection.execute(
+                    "SELECT protein_total, calories_total FROM recipes WHERE recipe_id = ?", (recipe_id,)
+                ).fetchone()
+        except sqlite3.Error:
+            return None
+        return self._minimum_servings(row) if row else None
+
+    @staticmethod
+    def _minimum_servings(row) -> int | None:
+        """Smallest confirmed serving count that yields a plausible portion, if one exists.
+
+        A label that says "verified nutrition" has to mean the user can actually reach a credible
+        number, otherwise the card promises something the calculation then refuses. Batch records
+        are the hard case: their totals are real but only divide into a portion once the serving
+        count is high enough, so the UI can say "at least N servings" instead of dead-ending.
+        """
+        if row["protein_total"] is None:
+            return None
+        for servings in range(1, MAX_CONFIRMED_SERVINGS + 1):
+            if (
+                row["protein_total"] / servings <= MAX_SERVING_PROTEIN_G
+                and row["calories_total"] / servings <= MAX_SERVING_CALORIES
+            ):
+                return servings
+        return None
+
     def nutrition_for_servings(self, slug: str, servings: int) -> dict | None:
         recipe_id = self.recipe_id(slug)
         if not recipe_id or not self.available:
@@ -134,16 +187,22 @@ class Recipe1MIndex:
                 """SELECT protein_total, calories_total, fat_total, recipe_weight_g
                    FROM recipes WHERE recipe_id = ?""", (recipe_id,)
             ).fetchone()
-        if not row or row["protein_total"] is None:
+        if not row or row["protein_total"] is None or row["calories_total"] is None or row["fat_total"] is None:
+            return None
+        nutrition = {
+            "protein": round(row["protein_total"] / servings, 1),
+            "calories": round(row["calories_total"] / servings, 1),
+            "fat": round(row["fat_total"] / servings, 1),
+            "carbs": None,
+        }
+        # Last line of defence. Import validation keeps stored totals physically plausible, but a
+        # user-chosen serving count can still divide a large recipe into an impossible portion.
+        # Failing closed here is what stops a nonsense number from ever reaching the screen.
+        if nutrition["protein"] > MAX_SERVING_PROTEIN_G or nutrition["calories"] > MAX_SERVING_CALORIES:
             return None
         return {
             "servings": servings,
-            "nutrition": {
-                "protein": round(row["protein_total"] / servings, 1),
-                "calories": round(row["calories_total"] / servings, 1),
-                "fat": round(row["fat_total"] / servings, 1),
-                "carbs": None,
-            },
+            "nutrition": nutrition,
             "basis": "user_confirmed_servings",
             "recipe_weight_g": row["recipe_weight_g"],
             "source": "Recipe1M ingredient-level nutrition subset",
@@ -209,6 +268,7 @@ class Recipe1MIndex:
 
     def _record(self, row: sqlite3.Row, ingredients: list[str], instructions: list[str] | None = None) -> dict:
         nutrition = self._nutrition(row)
+        minimum = self._minimum_servings(row)
         photo = None
         if row["image_url"]:
             photo = {
@@ -230,6 +290,8 @@ class Recipe1MIndex:
             # Search cards compare per-serving values, which Recipe1M does not provide.
             "protein_g": None,
             "calories": None,
+            "nutrition_available": minimum is not None,
+            "minimum_servings": minimum,
             "photo": photo,
             "ingredients_text": ingredients,
             "instructions_text": instructions or [],

@@ -17,6 +17,8 @@ export interface RecipeSummary {
   total_minutes: number | null
   protein_g: number | null
   calories: number | null
+  nutrition_available: boolean
+  minimum_servings?: number | null
   photo: Photo | null
   available_ingredients?: string[]
   missing_ingredients?: string[]
@@ -94,4 +96,6 @@ export interface SearchResponse {
   }
   results: RecipeSummary[]
   total_eligible: number
+  nutrition_ready_count: number
+  verified_nutrition_only: boolean
 }

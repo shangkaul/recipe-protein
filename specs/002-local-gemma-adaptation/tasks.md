@@ -28,13 +28,13 @@
 - [x] T018 [US2] Add adaptation endpoint and actionable failure responses.
 - [x] T019 [US2] Build original-versus-adapted comparison in the recipe detail flow.
 - [x] T020 [US2] Add model, safety, nutrition, contract, and UI tests.
-- [ ] T021 [US2] Run local end-to-end adaptation fixtures and raise checkpoint PR.
+- [x] T021 [US2] Run local end-to-end adaptation fixtures and raise checkpoint PR.
 
 ## Phase 4: Delivery Hardening
 
-- [ ] T022 Run complete accessibility, privacy, performance, and offline checks.
-- [ ] T023 Add deployment configuration without a cloud-model fallback.
-- [ ] T024 Record demo evidence and document measured limitations.
+- [x] T022 Run complete accessibility, privacy, performance, and offline checks.
+- [x] T023 Add deployment configuration without a cloud-model fallback.
+- [x] T024 Record demo evidence and document measured limitations.
 
 ## Dependencies
 

@@ -1,0 +1,54 @@
+services:
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  model-loader:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    network_mode: service:ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://127.0.0.1:11434
+    command: ["pull", "${OLLAMA_MODEL:-gemma3:1b}"]
+    restart: "no"
+
+  backend:
+    build: ./backend
+    network_mode: service:ollama
+    depends_on:
+      model-loader:
+        condition: service_completed_successfully
+    environment:
+      OLLAMA_BASE_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3:1b}
+      RECIPE1M_DB_PATH: /app/data/recipe1m.sqlite
+      RECIPE1M_IMAGE_CACHE: /app/data/recipe1m-images
+    volumes:
+      - ./backend/data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/api/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:80"
+    restart: unless-stopped
+
+volumes:
+  ollama-data:

@@ -9,7 +9,9 @@ async function getJson<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!response.ok) {
     const data = await response.json().catch(() => null)
-    throw new Error(data?.error || 'The local recipe service is unavailable.')
+    const error = new Error(data?.error || 'The local recipe service is unavailable.') as Error & { data?: unknown }
+    error.data = data
+    throw error
   }
   return response.json()
 }
@@ -26,6 +28,7 @@ export async function searchRecipes(payload: {
   protein_target_g: number
   preferred_minutes: number | null
   exclusions: string[]
+  verified_nutrition_only: boolean
 }): Promise<SearchResponse> {
   return getJson('/recipes/search', { method: 'POST', body: JSON.stringify({ ...payload, limit: 24 }) })
 }
@@ -34,8 +37,21 @@ export async function getRecipe(slug: string): Promise<RecipeDetail> {
   return getJson(`/recipes/${slug}`)
 }
 
+export interface NutritionUnavailableError extends Error {
+  reason?: string
+  minimumServings?: number | null
+}
+
 export async function confirmRecipeNutrition(slug: string, servings: number): Promise<ConfirmedNutrition> {
-  return getJson(`/recipes/${slug}/nutrition`, { method: 'POST', body: JSON.stringify({ servings }) })
+  try {
+    return await getJson(`/recipes/${slug}/nutrition`, { method: 'POST', body: JSON.stringify({ servings }) })
+  } catch (error) {
+    const data = (error as { data?: { reason?: string; minimum_servings?: number } }).data
+    const failure = new Error(error instanceof Error ? error.message : 'Nutrition could not be calculated.') as NutritionUnavailableError
+    failure.reason = data?.reason
+    failure.minimumServings = data?.minimum_servings ?? null
+    throw failure
+  }
 }
 
 export async function adaptRecipe(slug: string, payload: {

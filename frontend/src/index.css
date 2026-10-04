@@ -22,5 +22,5 @@ a { color: inherit; }
 :focus-visible { outline: 3px solid #e57b5f; outline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
