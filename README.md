@@ -24,6 +24,7 @@ a practical protein target.
 - Mobile-first responsive interface with installable PWA metadata and cached application shell
 - Structured model output is validated against the bundled ingredient vocabulary before retrieval
 - Search remains useful when Gemma or Ollama is unavailable
+- Optional private Recipe1M SQLite/FTS5 index for broader local recipe coverage
 - No account, health profile, or cloud AI fallback
 
 Grounded selected-recipe adaptation and deterministic post-adaptation nutrition calculation are
@@ -40,7 +41,8 @@ Local Flask API
   ├── schema-validated local Gemma refinement
   ├── red-meat safety filter
   ├── BM25 retrieval and deterministic ranking
-  └── versioned recipe corpus
+  ├── versioned public recipe corpus
+  └── optional local Recipe1M FTS5 index
         │
         └── grounded local Ollama adaptation (next checkpoint)
 ```
@@ -60,6 +62,23 @@ The bundled MVP corpus is **UniTools World Recipes v2**:
 Each displayed photo retains its own author and license metadata. The API applies a conservative
 red-meat exclusion before recipes enter the search index. Full attribution is documented in
 [`backend/data/ATTRIBUTION.md`](backend/data/ATTRIBUTION.md).
+
+### Optional local Recipe1M index
+
+Recipe1M source data is not bundled or deployed. If you have a local copy, build a private SQLite
+index from the repository root:
+
+```bash
+backend/.venv/bin/python backend/scripts/build_recipe1m_index.py \
+  --layer1 /path/to/layer1.json \
+  --layer2 /path/to/layer2.json \
+  --nutrition /path/to/recipes_with_nutritional_info.json
+```
+
+The generated `backend/data/recipe1m.sqlite` and on-demand image cache are ignored by Git. Set
+`RECIPE1M_DB_PATH` or `RECIPE1M_IMAGE_CACHE` to use other local paths. Recipe1M records do not
+provide reliable serving counts or cooking times, so those fields remain unavailable. Its optional
+nutrition subset is labelled per 100g and is never presented as per-serving nutrition.
 
 ## Run locally
 
@@ -124,6 +143,8 @@ contract, and phased task list are in
 [`specs/001-protein-pantry-recommendations/`](specs/001-protein-pantry-recommendations/).
 The local model feature has its own Spec Kit packet in
 [`specs/002-local-gemma-adaptation/`](specs/002-local-gemma-adaptation/).
+The private Recipe1M index is specified in
+[`specs/003-local-recipe1m-index/`](specs/003-local-recipe1m-index/).
 
 Important guarantees are captured in the
 [`project constitution`](.specify/memory/constitution.md): deterministic nutrition, grounded local

@@ -54,7 +54,7 @@ def test_preferred_time_changes_order_without_filtering():
     unrestricted = catalog.search("chicken rice", 30, None, [], 30)
     preferred = catalog.search("chicken rice", 30, 30, [], 30)
     assert preferred["total_eligible"] == unrestricted["total_eligible"]
-    assert any(item["total_minutes"] > 30 for item in preferred["results"])
+    assert any(item["total_minutes"] is None or item["total_minutes"] > 30 for item in preferred["results"])
 
 
 def test_spices_do_not_dilute_core_pantry_match():
@@ -76,8 +76,8 @@ def test_optional_exclusions_remove_matching_recipes():
     result = catalog.search("rice", 25, None, ["chicken"], 30)
     assert result["results"]
     for item in result["results"]:
-        recipe = catalog.by_slug[item["slug"]]
-        ingredient_terms = {ingredient["name"]["en"].lower() for ingredient in recipe["ingredients"]}
+        recipe = catalog.detail(item["slug"])
+        ingredient_terms = {ingredient["name"].lower() for ingredient in recipe["ingredients"]}
         assert not any("chicken" in ingredient for ingredient in ingredient_terms)
 
 

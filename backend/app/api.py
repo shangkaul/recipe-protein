@@ -1,9 +1,10 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from pydantic import ValidationError
 
 from .models import PantryRequest
 from .services.catalog import catalog
 from .services.ollama import ollama_client
+from .services.recipe1m import recipe1m_index
 
 
 api = Blueprint("api", __name__)
@@ -15,6 +16,7 @@ def health():
         "status": "ok",
         "recipes": len(catalog.recipes),
         "local_model": ollama_client.status().as_dict(),
+        "recipe1m": recipe1m_index.status(),
     })
 
 
@@ -43,3 +45,11 @@ def recipe_detail(slug: str):
     if not recipe:
         return jsonify({"error": "Recipe not found"}), 404
     return jsonify(recipe)
+
+
+@api.get("/recipe1m/images/<recipe_id>")
+def recipe1m_image(recipe_id: str):
+    image = recipe1m_index.cached_image(recipe_id)
+    if not image:
+        return jsonify({"error": "Image unavailable"}), 404
+    return send_file(image, max_age=86_400)

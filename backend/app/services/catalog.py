@@ -7,6 +7,7 @@ from rank_bm25 import BM25Okapi
 
 from .pantry import normalize, parse_pantry
 from .pantry_refinement import pantry_refinement
+from .recipe1m import recipe1m_index
 from .safety import recipe_is_safe
 
 
@@ -22,10 +23,13 @@ DERIVED_FORMS = {
     "chicken": {"stock", "broth", "bouillon"},
     "rice": {"noodle", "noodles", "paper", "flour", "vinegar", "wine", "milk"},
 }
+PASTA_FORMS = {"spaghetti", "penne", "macaroni", "linguine", "fettuccine", "rigatoni", "tagliatelle"}
 
 
 def ingredient_matches(term: str, ingredient: str) -> bool:
     if term == ingredient:
+        return True
+    if term == "pasta" and PASTA_FORMS.intersection(ingredient.split()):
         return True
     if term not in ingredient and ingredient not in term:
         return False
@@ -44,12 +48,13 @@ def exclusion_matches(term: str, ingredient: str) -> bool:
 
 
 class RecipeCatalog:
-    def __init__(self):
+    def __init__(self, local_index=None):
         self.recipes: list[dict] = []
         self.by_slug: dict[str, dict] = {}
         self.known_terms: set[str] = set()
         self.bm25: BM25Okapi | None = None
         self.meta: dict = {}
+        self.local_index = local_index or recipe1m_index
 
     def load(self) -> None:
         if self.recipes:
@@ -80,6 +85,7 @@ class RecipeCatalog:
             self.recipes.append(item)
             self.by_slug[item["slug"]] = item
         self.bm25 = BM25Okapi(docs, k1=1.2, b=0.75)
+        self.known_terms.update(self.local_index.known_terms)
 
     def summary(self, recipe: dict) -> dict:
         photo = recipe.get("photo")
@@ -93,12 +99,13 @@ class RecipeCatalog:
             "protein_g": recipe["nutritionPerServing"]["protein"],
             "calories": recipe["nutritionPerServing"]["calories"],
             "photo": photo,
+            "corpus": "unitools",
         }
 
     def detail(self, slug: str) -> dict | None:
         recipe = self.by_slug.get(slug)
         if not recipe:
-            return None
+            return self.local_index.detail(slug)
         result = self.summary(recipe)
         result.update({
             "ingredients": [{
@@ -129,6 +136,7 @@ class RecipeCatalog:
         # may explain pantry coverage but must not outrank a stronger core-ingredient match.
         query_terms = core_terms or parsed["recognized"] or parsed["display_terms"]
         scores = self.bm25.get_scores(tokens(" ".join(query_terms))) if self.bm25 else []
+        max_lexical = max((float(score) for score in scores), default=0.0)
         excluded = {normalize(value) for value in exclusions}
         ranked = []
         for index, recipe in enumerate(self.recipes):
@@ -148,7 +156,7 @@ class RecipeCatalog:
             protein = recipe["nutritionPerServing"]["protein"]
             target_fit = math.exp(-abs(protein - target) / max(8, target * 0.55))
             time_fit = math.exp(-abs(recipe["totalMinutes"] - preferred_minutes) / max(15, preferred_minutes * 0.5)) if preferred_minutes else 0
-            lexical = float(scores[index]) if len(scores) else 0.0
+            lexical = (float(scores[index]) / max_lexical * 6) if len(scores) and max_lexical > 0 else 0.0
             title = normalize(recipe["name"]["en"])
             title_match_count = sum(1 for term in core_terms if ingredient_matches(term, title))
             title_fit = title_match_count * 2.2
@@ -174,6 +182,50 @@ class RecipeCatalog:
                 "matched_core_ingredients": matched_core, "full_core_match": full_core_match,
                 "protein_difference_g": round(protein - target, 1), "score": round(score, 3),
                 "reasons": reasons[:3] or ["Relevant to your pantry"],
+            })
+        local_terms = list(dict.fromkeys([*core_terms, *parsed["display_terms"]]))
+        local_candidates = self.local_index.search(local_terms, excluded)
+        max_local_lexical = max((recipe["lexical_score"] for recipe in local_candidates), default=0.0)
+        for recipe in local_candidates:
+            ingredient_terms = {normalize(ingredient) for ingredient in recipe["ingredients_text"]}
+            matching_text = ingredient_terms | {
+                normalize(recipe["name"]),
+            }
+            terms_to_match = list(dict.fromkeys([*parsed["recognized"], *parsed["display_terms"]]))
+            local_core_terms = parsed["display_terms"] if parsed["mode"] == "locally_refined" else (core_terms or terms_to_match)
+            matched = sorted({
+                term for term in terms_to_match
+                if any(ingredient_matches(term, value) for value in matching_text)
+            })
+            matched_core = sorted(term for term in local_core_terms if term in matched)
+            if local_core_terms and not matched_core:
+                continue
+            coverage = len(matched_core) / max(1, len(set(local_core_terms)))
+            full_core_match = bool(local_core_terms) and coverage == 1
+            missing = [
+                ingredient for ingredient in recipe["ingredients_text"]
+                if not any(ingredient_matches(term, normalize(ingredient)) for term in matched)
+            ]
+            title = normalize(recipe["name"])
+            title_fit = sum(1 for term in local_core_terms if ingredient_matches(term, title)) * 2.2
+            lexical = recipe["lexical_score"] / max_local_lexical * 6 if max_local_lexical > 0 else 0.0
+            score = lexical + coverage * 8 + title_fit - min(len(missing), 8) * 0.12
+            reasons = []
+            if full_core_match and len(local_core_terms) > 1:
+                reasons.append("Matches all your main ingredients")
+            elif matched:
+                reasons.append(f"Uses {len(matched)} pantry ingredient{'s' if len(matched) != 1 else ''}")
+            reasons.append("From your local Recipe1M index")
+            ranked.append({
+                **{key: value for key, value in recipe.items() if key not in {"ingredients_text", "instructions_text", "lexical_score", "source"}},
+                "available_ingredients": matched,
+                "missing_ingredients": missing[:6],
+                "pantry_coverage": round(coverage, 2),
+                "matched_core_ingredients": matched_core,
+                "full_core_match": full_core_match,
+                "protein_difference_g": None,
+                "score": round(score, 3),
+                "reasons": reasons[:3],
             })
         ranked.sort(key=lambda item: (
             item["full_core_match"], item["pantry_coverage"],
