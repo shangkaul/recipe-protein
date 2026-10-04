@@ -9,7 +9,7 @@
 - [x] T007 Show unavailable time/nutrition honestly in search and detail UI.
 - [x] T008 Add fixture, fallback, exclusion, pasta, and detail tests.
 - [x] T009 Build the local full index and record performance/count evidence.
-- [ ] T010 Run full validation and raise the checkpoint PR.
+- [x] T010 Run full validation and raise the checkpoint PR.
 - [ ] T011 Add deterministic Recipe1M protein/calorie calculation from parsed ingredient quantities
   and an attributed nutrient reference. Local Gemma may propose structured quantity/yield extraction,
   but deterministic validation remains authoritative. Use an explicit source yield when present;
