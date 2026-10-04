@@ -83,6 +83,8 @@ new infrastructure, dependencies, and scope require a documented justification.
     continue on a separate, non-dependent branch when doing so does not bypass the review gate.
 12. Merges SHOULD use squash merge so `main` remains readable while GitHub retains branch, review,
     and pull-request history.
+13. Coherent, testable progress MUST be recorded as iterative commits and pushed to its feature
+    branch before the merge pull request is raised, so the development history remains reviewable.
 
 ## Governance
 This constitution supersedes ad hoc implementation preferences and all downstream planning

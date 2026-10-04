@@ -11,14 +11,17 @@
    - `docs/<short-name>` for documentation
    - `chore/<short-name>` for tooling or maintenance
 3. Keep commits scoped and include tests with behavior changes.
-4. Open a pull request that lists:
+4. Push iterative commits to the feature branch as each coherent unit becomes testable. This keeps
+   progress visible and reviewable without exposing unfinished work on `main`.
+5. Open a merge pull request from the feature branch into `main` that lists:
    - what changed and why;
    - specification tasks covered;
    - commands run and results;
    - screenshots for interface changes;
    - known limitations or follow-up work.
-5. Wait for the project owner to approve the pull request before merging.
-6. Prefer squash merge so `main` stays readable while GitHub retains review history.
+6. Wait for the project owner to approve the pull request before merging.
+7. Prefer squash merge so `main` stays readable while GitHub retains the branch's iterative commit,
+   review, and pull-request history.
 
 ## Quality gates
 

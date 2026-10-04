@@ -4,7 +4,7 @@
 
 - `text: string`
 - `protein_target_g: number` (5–100)
-- `max_minutes: number | null`
+- `preferred_minutes: number | null` (soft ranking preference, never an eligibility filter)
 - `exclusions: string[]`
 - `limit: number` (1–30)
 

@@ -13,7 +13,7 @@ Primary mobile-first PWA surface. Visitor mode: Operate.
 
 ## Audience and job
 
-Parents browsing practical meal ideas at home, then narrowing them with pantry ingredients, a protein target, and available time. The primary action is to move from an appealing idea to a feasible meal without needing nutrition expertise.
+Parents browsing practical meal ideas at home, then narrowing them with pantry ingredients, a protein target, and preferred cooking time. The primary action is to move from an appealing idea to a feasible meal without needing nutrition expertise.
 
 ## Constraints
 
