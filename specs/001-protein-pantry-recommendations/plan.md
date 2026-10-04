@@ -39,7 +39,9 @@ touch/keyboard UI, cached application shell
 
 1. **Corpus loader** converts UniTools records into internal recipe models and applies conservative
    red-meat exclusion before indexing.
-2. **Pantry parser** tokenizes natural language and resolves a curated synonym map.
+2. **Pantry parser** tokenizes natural language and resolves a curated synonym map. Deterministic
+   parsing remains the fast fallback; local Gemma may refine ambiguous terms and core-versus-basic
+   roles through a closed JSON schema whose canonical IDs are validated against the corpus.
 3. **Ranking service** uses BM25 for lexical relevance, then combines coverage, nutrition-target,
    time, and cuisine signals with an explanation payload.
 4. **Adaptation service** calls local Ollama for schema-bound changes, validates ingredients and

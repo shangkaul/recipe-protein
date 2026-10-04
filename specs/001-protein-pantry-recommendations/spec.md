@@ -58,7 +58,7 @@ available and missing ingredients, and exposes the target-fit information needed
 
 **Acceptance Scenarios**:
 
-1. **Given** a pantry description, per-meal protein target, and time limit, **When** the user
+1. **Given** a pantry description, per-meal protein target, and preferred cooking time, **When** the user
    searches, **Then** the product returns up to 30 ranked recipes and explains each result's pantry
    fit, approximate protein, approximate calories, and total time.
 2. **Given** a search with fewer than 20 eligible recipes, **When** results are displayed, **Then**
@@ -146,7 +146,7 @@ three suitable additions are shown with portions, approximate protein, calories,
 - The user enters duplicate ingredients, plural forms, spelling variants, or mixed Hindi/English
   food terms written in Latin script.
 - The requested target is zero, negative, implausibly high, or not numeric.
-- The time limit or exclusions reduce the eligible set below 20 recipes or to zero.
+- Ingredient exclusions reduce the eligible set below 20 recipes or to zero.
 - A recipe has incomplete nutrition, quantities, source attribution, or license information.
 - An otherwise suitable recipe contains a red-meat-derived ingredient such as stock, gelatin, or
   rendered fat.
@@ -163,12 +163,15 @@ three suitable additions are shown with portions, approximate protein, calories,
 - **FR-001**: The product MUST accept a typed natural-language pantry description.
 - **FR-002**: The product MUST accept a user-entered per-meal protein target in grams and MUST NOT
   calculate or recommend a target from personal health data.
-- **FR-003**: The product MUST accept a maximum preparation time and optional ingredient exclusions.
+- **FR-003**: The product MUST accept a preferred cooking time and optional ingredient exclusions.
+  Cooking time MUST influence ranking but MUST NOT exclude an otherwise eligible recipe.
 - **FR-004**: The product MUST normalize recognized ingredient synonyms and present unresolved input
   terms for correction.
 - **FR-005**: The product MUST retrieve and rank up to 30 distinct eligible recipes per search.
 - **FR-006**: Ranking MUST consider pantry ingredient coverage, missing ingredients, protein-target
-  fit, time fit, cuisine preference, and recipe relevance.
+  fit, preferred-time closeness, cuisine preference, and recipe relevance. Recipes matching every
+  recognized core pantry ingredient MUST rank above partial matches whenever such recipes exist;
+  basic staples MUST NOT outweigh core-ingredient fit.
 - **FR-007**: Ranking MUST prefer Indian recipes when relevance is otherwise comparable while still
   allowing global recipes.
 - **FR-008**: The product MUST exclude recipes and adaptations containing beef, lamb, pork, other red
@@ -211,7 +214,7 @@ three suitable additions are shown with portions, approximate protein, calories,
 ### Key Entities *(include if feature involves data)*
 
 - **Pantry Request**: The user's original text, recognized and unresolved ingredients, per-meal
-  target, time limit, exclusions, and cuisine preference for one search.
+  target, preferred cooking time, exclusions, and cuisine preference for one search.
 - **Recipe**: A licensed source recipe with identity, cuisine, meal category, servings, ingredients,
   quantities, instructions, times, dietary attributes, and source attribution.
 - **Ingredient**: A canonical food identity with synonyms, dietary flags, unit mappings, and a link
