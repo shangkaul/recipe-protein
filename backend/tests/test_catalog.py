@@ -65,6 +65,22 @@ def test_spices_do_not_dilute_core_pantry_match():
     assert not parsed["unresolved"]
 
 
+def test_common_indian_english_aliases_use_corpus_vocabulary():
+    parsed = parse_pantry("bhindi, chana, rajma, chawal, shimla mirch", catalog.known_terms)
+    assert set(parsed["core"]) == {"okra", "chickpeas", "red kidney beans", "rice"}
+    assert "pepper" in parsed["basics"]
+    assert not parsed["unresolved"]
+
+
+def test_optional_exclusions_remove_matching_recipes():
+    result = catalog.search("rice", 25, None, ["chicken"], 30)
+    assert result["results"]
+    for item in result["results"]:
+        recipe = catalog.by_slug[item["slug"]]
+        ingredient_terms = {ingredient["name"]["en"].lower() for ingredient in recipe["ingredients"]}
+        assert not any("chicken" in ingredient for ingredient in ingredient_terms)
+
+
 def test_api_rejects_empty_pantry():
     client = create_app(testing=True).test_client()
     response = client.post("/api/recipes/search", json={"text": "", "protein_target_g": 30})
