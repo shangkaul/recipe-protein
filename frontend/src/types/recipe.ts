@@ -12,17 +12,18 @@ export interface RecipeSummary {
   country: string
   category: string
   diets: string[]
-  difficulty: string
-  servings: number
-  total_minutes: number
-  protein_g: number
-  calories: number
+  difficulty: string | null
+  servings: number | null
+  total_minutes: number | null
+  protein_g: number | null
+  calories: number | null
   photo: Photo | null
   available_ingredients?: string[]
   missing_ingredients?: string[]
   pantry_coverage?: number
   protein_difference_g?: number
   reasons?: string[]
+  corpus?: 'unitools' | 'recipe1m'
 }
 
 export interface RecipeDetail extends RecipeSummary {
@@ -34,7 +35,8 @@ export interface RecipeDetail extends RecipeSummary {
     note: string | null
   }>
   steps: Array<{ text: string; minutes: number | null }>
-  nutrition: { protein: number; calories: number; fat: number; carbs: number }
+  nutrition: { protein: number; calories: number; fat: number; carbs: number | null } | null
+  nutrition_basis?: 'per_100g' | null
   source: { attribution: string; homepage: string; license: string; licenseUrl: string }
 }
 

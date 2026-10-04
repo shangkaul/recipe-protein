@@ -235,8 +235,8 @@ function App() {
           )}
 
           <footer>
-            <span>Nutrition values are approximate per serving.</span>
-            <a href="https://theunitools.com/en/data" target="_blank" rel="noreferrer">Recipe data: UniTools · CC BY-SA 4.0</a>
+            <span>Nutrition is shown only when its source and basis are known.</span>
+            <a href="https://theunitools.com/en/data" target="_blank" rel="noreferrer">Public recipe data: UniTools · CC BY-SA 4.0</a>
           </footer>
         </section>
       </main>
@@ -282,7 +282,7 @@ function RecipeCard({ recipe, ranked, featured, onOpen }: { recipe: RecipeSummar
           {recipe.country === 'India' && <span className="image-label">Indian</span>}
         </div>
         <div className="recipe-copy">
-          <div className="recipe-meta"><span>{recipe.cuisine}</span><span><Clock3 size={14} /> {recipe.total_minutes} min</span></div>
+          <div className="recipe-meta"><span>{recipe.cuisine}</span><span><Clock3 size={14} /> {recipe.total_minutes === null ? 'Time not listed' : `${recipe.total_minutes} min`}</span></div>
           <h2>{recipe.name}</h2>
           <p className="recipe-summary">{recipe.summary}</p>
           {ranked && recipe.reasons && <p className="rank-reason">{recipe.reasons[0]}</p>}
@@ -293,8 +293,8 @@ function RecipeCard({ recipe, ranked, featured, onOpen }: { recipe: RecipeSummar
             </div>
           )}
           <div className="nutrition-row">
-            <span><strong>{recipe.protein_g}g</strong> protein</span>
-            <span><strong>{recipe.calories}</strong> kcal</span>
+            <span><strong>{recipe.protein_g === null ? '—' : `${recipe.protein_g}g`}</strong> protein</span>
+            <span><strong>{recipe.calories === null ? '—' : recipe.calories}</strong> kcal</span>
             <ArrowRight className="open-arrow" size={20} aria-hidden="true" />
           </div>
         </div>
@@ -317,15 +317,18 @@ function RecipeDrawer({ recipe, onClose }: { recipe: RecipeDetail; onClose: () =
         </div>
         {recipe.photo && <img className="detail-image" src={recipe.photo.url} alt="" />}
         <div className="detail-body">
-          <p className="detail-meta">{recipe.cuisine} · {recipe.total_minutes} minutes · {recipe.servings} servings</p>
+          <p className="detail-meta">{recipe.cuisine} · {recipe.total_minutes === null ? 'Time not listed' : `${recipe.total_minutes} minutes`} · {recipe.servings === null ? 'Servings not listed' : `${recipe.servings} servings`}</p>
           <h1 id="recipe-title">{recipe.name}</h1>
           <p className="detail-summary">{recipe.summary}</p>
-          <div className="detail-nutrition">
-            <span><strong>{recipe.nutrition.protein}g</strong> protein</span>
-            <span><strong>{recipe.nutrition.calories}</strong> kcal</span>
-            <span><strong>{recipe.nutrition.carbs}g</strong> carbs</span>
-            <span><strong>{recipe.nutrition.fat}g</strong> fat</span>
-          </div>
+          {recipe.nutrition ? (
+            <div className="detail-nutrition">
+              <span><strong>{recipe.nutrition.protein}g</strong> protein</span>
+              <span><strong>{recipe.nutrition.calories}</strong> kcal</span>
+              {recipe.nutrition.carbs !== null && <span><strong>{recipe.nutrition.carbs}g</strong> carbs</span>}
+              <span><strong>{recipe.nutrition.fat}g</strong> fat</span>
+              {recipe.nutrition_basis === 'per_100g' && <span>per 100g</span>}
+            </div>
+          ) : <p className="detail-summary">Nutrition not listed in the source dataset.</p>}
 
           <div className="recipe-columns">
             <section>
@@ -348,7 +351,7 @@ function RecipeDrawer({ recipe, onClose }: { recipe: RecipeDetail; onClose: () =
           </div>
 
           <div className="source-note">
-            <p>Approximate nutrition per serving from the source dataset. This is cooking guidance, not medical advice.</p>
+            <p>{recipe.nutrition_basis === 'per_100g' ? 'Nutrition values are source data per 100g.' : recipe.nutrition ? 'Approximate nutrition per serving from the source dataset.' : 'Nutrition is not available for this recipe.'} This is cooking guidance, not medical advice.</p>
             <a href={recipe.source.homepage} target="_blank" rel="noreferrer">{recipe.source.attribution} · {recipe.source.license}</a>
             {recipe.photo && <span>Photo: {recipe.photo.author} · {recipe.photo.license}</span>}
           </div>
