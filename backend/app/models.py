@@ -53,6 +53,12 @@ class PantryRefinement(BaseModel):
 class AdaptRequest(BaseModel):
     pantry: str = Field(min_length=1, max_length=1000)
     protein_target_g: float = Field(default=30, ge=5, le=100)
+    exclusions: list[str] = Field(default_factory=list, max_length=20)
+    servings: int | None = Field(default=None, ge=1, le=24)
+
+
+class ServingRequest(BaseModel):
+    servings: int = Field(ge=1, le=24)
 
 
 class ModelChange(BaseModel):

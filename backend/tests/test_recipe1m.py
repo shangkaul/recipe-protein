@@ -34,7 +34,12 @@ def fixture_index(tmp_path: Path) -> Recipe1MIndex:
         {"id": "0000000001", "images": [{"id": "abc.jpg", "url": "https://example.com/a.jpg"}]},
     ])
     nutrition = write_json(tmp_path / "nutrition.json", [
-        {"id": "0000000001", "nutr_values_per100g": {"protein": 8.2, "energy": 180, "fat": 4.5}},
+        {
+            "id": "0000000001",
+            "nutr_values_per100g": {"protein": 8.2, "energy": 180, "fat": 4.5},
+            "weight_per_ingr": [100],
+            "nutr_per_ingredient": [{"pro": 8.2, "nrg": 180, "fat": 4.5}],
+        },
     ])
     database = tmp_path / "recipe1m.sqlite"
     build_index(layer1, database, layer2, nutrition)
@@ -56,6 +61,9 @@ def test_builder_filters_red_meat_and_records_optional_metadata(tmp_path):
     assert detail["nutrition"]["protein"] == 8.2
     assert detail["photo"]["url"] == "/api/recipe1m/images/0000000001"
     assert index.detail("r1m-0000000002") is None
+    confirmed = index.nutrition_for_servings("r1m-0000000001", 2)
+    assert confirmed["nutrition"]["protein"] == 4.1
+    assert confirmed["nutrition"]["calories"] == 90
 
 
 def test_local_pasta_results_join_existing_deterministic_ranking(tmp_path):

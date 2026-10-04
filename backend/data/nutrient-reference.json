@@ -1,0 +1,21 @@
+{
+  "source": {
+    "name": "USDA FoodData Central — SR Legacy",
+    "homepage": "https://fdc.nal.usda.gov/",
+    "download": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip",
+    "license": "Public domain",
+    "retrieved": "2026-10-04",
+    "basis": "per 100 g edible portion"
+  },
+  "foods": [
+    {"id":"chicken","name":"Cooked chicken breast","aliases":["chicken","chicken breast"],"fdc_id":171477,"description":"Chicken, broilers or fryers, breast, meat only, cooked, roasted","protein":31.0,"calories":165,"fat":3.57},
+    {"id":"tofu","name":"Firm tofu","aliases":["tofu","firm tofu"],"fdc_id":172448,"description":"Tofu, firm, prepared with calcium sulfate and magnesium chloride (nigari)","protein":9.04,"calories":78,"fat":4.17},
+    {"id":"egg","name":"Hard-boiled egg","aliases":["egg","eggs","boiled egg"],"fdc_id":173424,"description":"Egg, whole, cooked, hard-boiled","protein":12.6,"calories":155,"fat":10.6},
+    {"id":"lentils","name":"Cooked lentils","aliases":["lentil","lentils","dal","daal","dhal"],"fdc_id":172421,"description":"Lentils, mature seeds, cooked, boiled, without salt","protein":9.02,"calories":116,"fat":0.38},
+    {"id":"chickpeas","name":"Cooked chickpeas","aliases":["chickpea","chickpeas","chana","garbanzo","garbanzo beans"],"fdc_id":173757,"description":"Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, without salt","protein":8.86,"calories":164,"fat":2.59},
+    {"id":"greek-yogurt","name":"Plain nonfat Greek yogurt","aliases":["greek yogurt","yogurt","curd","dahi"],"fdc_id":171312,"description":"Yogurt, Greek, nonfat, plain, CHOBANI","protein":9.53,"calories":54,"fat":0.24},
+    {"id":"tuna","name":"Canned tuna in water","aliases":["tuna","canned tuna"],"fdc_id":171986,"description":"Fish, tuna, light, canned in water, without salt, drained solids","protein":25.5,"calories":116,"fat":0.82},
+    {"id":"shrimp","name":"Cooked shrimp","aliases":["shrimp","prawn","prawns"],"fdc_id":175180,"description":"Crustaceans, shrimp, cooked","protein":24.0,"calories":99,"fat":0.28},
+    {"id":"cottage-cheese","name":"Low-fat cottage cheese","aliases":["cottage cheese"],"fdc_id":172182,"description":"Cheese, cottage, lowfat, 2% milkfat","protein":10.4,"calories":81,"fat":2.27}
+  ]
+}

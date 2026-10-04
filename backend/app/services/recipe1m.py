@@ -120,6 +120,30 @@ class Recipe1MIndex:
         })
         return record
 
+    def nutrition_for_servings(self, slug: str, servings: int) -> dict | None:
+        recipe_id = self.recipe_id(slug)
+        if not recipe_id or not self.available:
+            return None
+        with self._connect() as connection:
+            row = connection.execute(
+                """SELECT protein_total, calories_total, fat_total, recipe_weight_g
+                   FROM recipes WHERE recipe_id = ?""", (recipe_id,)
+            ).fetchone()
+        if not row or row["protein_total"] is None:
+            return None
+        return {
+            "servings": servings,
+            "nutrition": {
+                "protein": round(row["protein_total"] / servings, 1),
+                "calories": round(row["calories_total"] / servings, 1),
+                "fat": round(row["fat_total"] / servings, 1),
+                "carbs": None,
+            },
+            "basis": "user_confirmed_servings",
+            "recipe_weight_g": row["recipe_weight_g"],
+            "source": "Recipe1M ingredient-level nutrition subset",
+        }
+
     def cached_image(self, recipe_id: str) -> Path | None:
         if not re.fullmatch(r"[a-f0-9]{10}", recipe_id) or not self.available:
             return None
