@@ -16,15 +16,18 @@ a practical protein target.
 
 - Browse-first meal ideas with Indian recipes preferred when relevant
 - Natural-language pantry input with common Indian English ingredient aliases
+- Optional local Gemma refinement for unresolved or misspelled pantry words
+- Optional free-text ingredient exclusions, with automatic red-meat exclusion always active
 - BM25 retrieval combined with pantry coverage, protein-target fit, cooking time, and cuisine
 - Hard exclusion of beef, pork, lamb, other red meat, and red-meat-derived ingredients
 - Per-serving protein, calories, time, ingredients, instructions, and source attribution
 - Mobile-first responsive interface with installable PWA metadata and cached application shell
-- Search remains useful without a generative model
+- Structured model output is validated against the bundled ingredient vocabulary before retrieval
+- Search remains useful when Gemma or Ollama is unavailable
 - No account, health profile, or cloud AI fallback
 
-Local open-weight recipe adaptation and deterministic post-adaptation nutrition calculation are
-planned in the next implementation phase. Model-generated nutrition will never be displayed.
+Grounded selected-recipe adaptation and deterministic post-adaptation nutrition calculation are
+planned in the next checkpoint. Model-generated nutrition will never be displayed.
 
 ## Architecture
 
@@ -34,11 +37,12 @@ React + TypeScript PWA
         ▼
 Local Flask API
   ├── pantry normalization
+  ├── schema-validated local Gemma refinement
   ├── red-meat safety filter
   ├── BM25 retrieval and deterministic ranking
   └── versioned recipe corpus
         │
-        └── local Ollama adaptation (next phase)
+        └── grounded local Ollama adaptation (next checkpoint)
 ```
 
 The frontend and API run locally. Pantry text, exclusions, and protein targets are not sent to a
@@ -63,7 +67,7 @@ red-meat exclusion before recipes enter the search index. Full attribution is do
 
 - Node.js 22+
 - Python 3.11+
-- Ollama only when using the future local adaptation feature
+- Ollama when using optional local pantry refinement or the upcoming adaptation feature
 
 ### Fastest setup
 
@@ -71,12 +75,15 @@ No environment needs to be activated first. From the repository root:
 
 ```bash
 make setup
+make setup-ai  # optional: downloads gemma3:1b through Ollama
 make dev
 ```
 
 `make setup` creates `backend/.venv`, installs the Python packages inside it, and installs the
 frontend packages. `make dev` uses that environment directly and starts both services. Press
-`Control+C` once to stop them.
+`Control+C` once to stop them. `make setup-ai` is deliberately separate: ordinary search works
+without downloading a model. When installed, Gemma receives only unresolved pantry input through
+Ollama's loopback API; invalid, timed-out, and unavailable responses fall back to direct matches.
 
 ### Manual setup
 
@@ -115,6 +122,8 @@ cd frontend && npm run lint
 This project uses GitHub Spec Kit. The approved specification, dataset audit, architecture, API
 contract, and phased task list are in
 [`specs/001-protein-pantry-recommendations/`](specs/001-protein-pantry-recommendations/).
+The local model feature has its own Spec Kit packet in
+[`specs/002-local-gemma-adaptation/`](specs/002-local-gemma-adaptation/).
 
 Important guarantees are captured in the
 [`project constitution`](.specify/memory/constitution.md): deterministic nutrition, grounded local

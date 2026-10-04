@@ -2,21 +2,21 @@
 
 ## Phase 1: Checkpoint 2 Foundation
 
-- [ ] T001 Add optional exclusions input in `frontend/src/App.tsx`.
-- [ ] T002 Apply normalized exclusions before ranking in `backend/app/services/catalog.py`.
-- [ ] T003 Add Ollama client and loopback-only configuration in `backend/app/services/ollama.py`.
-- [ ] T004 Add local model status to `GET /api/health` in `backend/app/api.py`.
+- [x] T001 Add optional exclusions input in `frontend/src/App.tsx`.
+- [x] T002 Apply normalized exclusions before ranking in `backend/app/services/catalog.py`.
+- [x] T003 Add Ollama client and loopback-only configuration in `backend/app/services/ollama.py`.
+- [x] T004 Add local model status to `GET /api/health` in `backend/app/api.py`.
 
 ## Phase 2: User Story 1 — Ambiguous Pantry Refinement
 
-- [ ] T005 [US1] Add Pydantic refinement schema in `backend/app/models.py`.
-- [ ] T006 [US1] Add bounded candidate generation in `backend/app/services/pantry_refinement.py`.
-- [ ] T007 [US1] Call local structured output only for ambiguous terms.
-- [ ] T008 [US1] Validate canonical IDs and merge without deleting deterministic terms.
-- [ ] T009 [US1] Return parser provenance and fallback status from recipe search.
-- [ ] T010 [US1] Show deterministic, refined, basic, and unresolved states in the PWA.
-- [ ] T011 [US1] Add success, invalid-output, timeout, unavailable, and privacy tests.
-- [ ] T012 [US1] Run mobile/desktop and Impeccable checks, then raise checkpoint PR.
+- [x] T005 [US1] Add Pydantic refinement schema in `backend/app/models.py`.
+- [x] T006 [US1] Add bounded candidate generation in `backend/app/services/pantry_refinement.py`.
+- [x] T007 [US1] Call local structured output only for ambiguous terms.
+- [x] T008 [US1] Validate canonical IDs and merge without deleting deterministic terms.
+- [x] T009 [US1] Return parser provenance and fallback status from recipe search.
+- [x] T010 [US1] Show deterministic, refined, basic, and unresolved states in the PWA.
+- [x] T011 [US1] Add success, invalid-output, timeout, unavailable, and privacy tests.
+- [x] T012 [US1] Run mobile/desktop and Impeccable checks, then raise checkpoint PR.
 
 ## Phase 3: User Story 2 — Grounded Recipe Adaptation
 

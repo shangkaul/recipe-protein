@@ -165,6 +165,8 @@ three suitable additions are shown with portions, approximate protein, calories,
   calculate or recommend a target from personal health data.
 - **FR-003**: The product MUST accept a preferred cooking time and optional ingredient exclusions.
   Cooking time MUST influence ranking but MUST NOT exclude an otherwise eligible recipe.
+- **FR-003a**: Users MUST be able to enter one or more optional excluded ingredients as free text;
+  any matching recipe MUST be removed before ranking, while red-meat exclusion remains automatic.
 - **FR-004**: The product MUST normalize recognized ingredient synonyms and present unresolved input
   terms for correction.
 - **FR-005**: The product MUST retrieve and rank up to 30 distinct eligible recipes per search.
